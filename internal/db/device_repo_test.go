@@ -1,9 +1,16 @@
 package db
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/driversti/keyforge/internal/models"
+)
+
+// Valid SSH test keys for use in tests.
+const (
+	testKey1 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFXQEx7dJI2DHGuq5nQzd0yozL4XHRRSdlaokZYy0ipS test@host"
+	testKey2 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICKyQHFUMsbDtH66sAAI35pIsLxLCfCUc29crMc0/KHn test2@host"
 )
 
 // newTestDB creates an in-memory SQLite database for testing.
@@ -22,7 +29,7 @@ func TestCreateDevice(t *testing.T) {
 
 	req := models.CreateDeviceRequest{
 		Name:      "my-laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+		PublicKey: testKey1,
 		Tags:      []string{"dev", "personal"},
 	}
 
@@ -40,25 +47,69 @@ func TestCreateDevice(t *testing.T) {
 	if device.Fingerprint == "" {
 		t.Error("expected fingerprint to be non-empty")
 	}
+	if !strings.HasPrefix(device.Fingerprint, "SHA256:") {
+		t.Errorf("expected fingerprint to start with 'SHA256:', got %q", device.Fingerprint)
+	}
 	if device.ID == "" {
 		t.Error("expected ID to be non-empty")
+	}
+}
+
+func TestCreateDevice_InvalidKey(t *testing.T) {
+	db := newTestDB(t)
+
+	req := models.CreateDeviceRequest{
+		Name:      "my-laptop",
+		PublicKey: "not-a-valid-ssh-key",
+	}
+
+	_, err := db.CreateDevice(req)
+	if err == nil {
+		t.Fatal("expected error for invalid SSH key, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid SSH public key") {
+		t.Errorf("expected 'invalid SSH public key' error, got: %v", err)
+	}
+}
+
+func TestCreateDevice_DuplicatePublicKey(t *testing.T) {
+	db := newTestDB(t)
+
+	_, err := db.CreateDevice(models.CreateDeviceRequest{
+		Name:      "device-1",
+		PublicKey: testKey1,
+	})
+	if err != nil {
+		t.Fatalf("first CreateDevice: %v", err)
+	}
+
+	_, err = db.CreateDevice(models.CreateDeviceRequest{
+		Name:      "device-2",
+		PublicKey: testKey1,
+	})
+	if err == nil {
+		t.Fatal("expected error for duplicate public key, got nil")
+	}
+	if !strings.Contains(err.Error(), "already registered") {
+		t.Errorf("expected 'already registered' error, got: %v", err)
 	}
 }
 
 func TestCreateDevice_DuplicateName(t *testing.T) {
 	db := newTestDB(t)
 
-	req := models.CreateDeviceRequest{
+	_, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "my-laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
-	}
-
-	_, err := db.CreateDevice(req)
+		PublicKey: testKey1,
+	})
 	if err != nil {
 		t.Fatalf("first CreateDevice: %v", err)
 	}
 
-	_, err = db.CreateDevice(req)
+	_, err = db.CreateDevice(models.CreateDeviceRequest{
+		Name:      "my-laptop",
+		PublicKey: testKey2,
+	})
 	if err == nil {
 		t.Fatal("expected error for duplicate name, got nil")
 	}
@@ -67,10 +118,11 @@ func TestCreateDevice_DuplicateName(t *testing.T) {
 func TestListDevices(t *testing.T) {
 	db := newTestDB(t)
 
-	for _, name := range []string{"device-1", "device-2"} {
+	keys := []string{testKey1, testKey2}
+	for i, name := range []string{"device-1", "device-2"} {
 		_, err := db.CreateDevice(models.CreateDeviceRequest{
 			Name:      name,
-			PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+			PublicKey: keys[i],
 		})
 		if err != nil {
 			t.Fatalf("CreateDevice(%s): %v", name, err)
@@ -91,7 +143,7 @@ func TestGetDevice(t *testing.T) {
 
 	created, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "my-laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+		PublicKey: testKey1,
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice: %v", err)
@@ -111,7 +163,7 @@ func TestRevokeDevice(t *testing.T) {
 
 	created, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "my-laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+		PublicKey: testKey1,
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice: %v", err)
@@ -135,7 +187,7 @@ func TestDeleteDevice(t *testing.T) {
 
 	created, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "my-laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+		PublicKey: testKey1,
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice: %v", err)
@@ -156,7 +208,7 @@ func TestGetActivePublicKeys(t *testing.T) {
 
 	d1, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "device-1",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest1 user@host",
+		PublicKey: testKey1,
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice(device-1): %v", err)
@@ -164,7 +216,7 @@ func TestGetActivePublicKeys(t *testing.T) {
 
 	_, err = db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "device-2",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest2 user@host",
+		PublicKey: testKey2,
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice(device-2): %v", err)
@@ -188,7 +240,7 @@ func TestUpdateDevice(t *testing.T) {
 
 	created, err := db.CreateDevice(models.CreateDeviceRequest{
 		Name:       "my-laptop",
-		PublicKey:  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest user@host",
+		PublicKey:  testKey1,
 		AcceptsSSH: false,
 		Tags:       []string{"dev"},
 	})

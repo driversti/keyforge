@@ -17,16 +17,19 @@ type Server struct {
 	apiHandler *api.Handler
 	webHandler *web.Handler
 	apiKey     string
+	sessions   *web.SessionStore
 	mux        *http.ServeMux
 }
 
 // New creates a new Server, wires up all routes, and returns it.
 func New(database *db.DB, apiKey string, serverURL string) (*Server, error) {
+	sessions := web.NewSessionStore()
 	s := &Server{
 		db:         database,
 		apiHandler: api.NewHandler(database),
-		webHandler: web.NewHandler(database, serverURL),
+		webHandler: web.NewHandler(database, serverURL, apiKey, sessions),
 		apiKey:     apiKey,
+		sessions:   sessions,
 		mux:        http.NewServeMux(),
 	}
 	s.routes()
@@ -35,25 +38,31 @@ func New(database *db.DB, apiKey string, serverURL string) (*Server, error) {
 
 func (s *Server) routes() {
 	requireKey := auth.RequireAPIKey(s.apiKey)
+	requireSession := web.SessionAuth(s.apiKey, s.sessions)
 
-	// Static files.
+	// Static files (no auth).
 	staticFS, _ := fs.Sub(web.Content, "static")
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	// Web UI routes.
-	s.mux.HandleFunc("GET /{$}", s.webHandler.DevicesPage)
-	s.mux.HandleFunc("GET /add", s.webHandler.AddDevicePage)
-	s.mux.HandleFunc("POST /add", s.webHandler.AddDeviceSubmit)
-	s.mux.HandleFunc("GET /authorized-keys", s.webHandler.AuthorizedKeysPage)
-	s.mux.HandleFunc("POST /devices/{id}/revoke", func(w http.ResponseWriter, r *http.Request) {
+	// Login/Logout routes (no session auth).
+	s.mux.HandleFunc("GET /login", s.webHandler.LoginPage)
+	s.mux.HandleFunc("POST /login", s.webHandler.LoginSubmit)
+	s.mux.HandleFunc("GET /logout", s.webHandler.LogoutHandler)
+
+	// Web UI routes (session auth required).
+	s.mux.Handle("GET /{$}", requireSession(http.HandlerFunc(s.webHandler.DevicesPage)))
+	s.mux.Handle("GET /add", requireSession(http.HandlerFunc(s.webHandler.AddDevicePage)))
+	s.mux.Handle("POST /add", requireSession(http.HandlerFunc(s.webHandler.AddDeviceSubmit)))
+	s.mux.Handle("GET /authorized-keys", requireSession(http.HandlerFunc(s.webHandler.AuthorizedKeysPage)))
+	s.mux.Handle("POST /devices/{id}/revoke", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.webHandler.RevokeDeviceAction(w, r, r.PathValue("id"))
-	})
-	s.mux.HandleFunc("POST /devices/{id}/reactivate", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.mux.Handle("POST /devices/{id}/reactivate", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.webHandler.ReactivateDeviceAction(w, r, r.PathValue("id"))
-	})
-	s.mux.HandleFunc("POST /devices/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.mux.Handle("POST /devices/{id}/delete", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.webHandler.DeleteDeviceAction(w, r, r.PathValue("id"))
-	})
+	})))
 
 	// Public API routes (no auth).
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -75,12 +75,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 // loadOrGenerateAPIKey retrieves the API key from the settings table. If none
 // exists, it generates a new one, stores it, and prints it to stdout.
 func loadOrGenerateAPIKey(database *db.DB) (string, error) {
-	var key string
-	err := database.DB.QueryRow("SELECT value FROM settings WHERE key = 'api_key'").Scan(&key)
+	key, err := database.GetSetting("api_key")
 	if err == nil {
 		return key, nil
 	}
-	if err != sql.ErrNoRows {
+	// If the error is not "no rows", it's a real error.
+	if !strings.Contains(err.Error(), "sql: no rows") {
 		return "", fmt.Errorf("query api_key: %w", err)
 	}
 
@@ -90,7 +90,7 @@ func loadOrGenerateAPIKey(database *db.DB) (string, error) {
 		return "", fmt.Errorf("generate api key: %w", err)
 	}
 
-	if _, err := database.DB.Exec("INSERT INTO settings (key, value) VALUES ('api_key', ?)", key); err != nil {
+	if err := database.SetSetting("api_key", key); err != nil {
 		return "", fmt.Errorf("store api key: %w", err)
 	}
 

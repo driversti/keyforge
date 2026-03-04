@@ -74,6 +74,8 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request, id string) {
 
 // CreateDevice creates a new device from the JSON request body.
 func (h *Handler) CreateDevice(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
+
 	var req models.CreateDeviceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
@@ -87,8 +89,12 @@ func (h *Handler) CreateDevice(w http.ResponseWriter, r *http.Request) {
 
 	device, err := h.db.CreateDevice(req)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "already registered") {
 			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+		if strings.Contains(err.Error(), "invalid SSH public key") {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create device"})
@@ -104,6 +110,8 @@ func (h *Handler) CreateDevice(w http.ResponseWriter, r *http.Request) {
 
 // UpdateDevice updates an existing device.
 func (h *Handler) UpdateDevice(w http.ResponseWriter, r *http.Request, id string) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
+
 	var req models.UpdateDeviceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})

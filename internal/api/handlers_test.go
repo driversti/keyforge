@@ -11,6 +11,12 @@ import (
 	"github.com/driversti/keyforge/internal/models"
 )
 
+// Valid SSH test keys.
+const (
+	testKeyLaptop  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII5yak9cvNB/jc6mOvejvYX5ZSd70VZUcSBIfUL0utdE laptop@example"
+	testKeyDesktop = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP2nNiw8OGIXXRMMP91YhNt95aekM4gg6hEJNwM2T/Ea desktop@example"
+)
+
 func setup(t *testing.T) *Handler {
 	t.Helper()
 	database, err := db.New(":memory:")
@@ -48,11 +54,11 @@ func TestGetAuthorizedKeys(t *testing.T) {
 	// Create two devices.
 	h.db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA laptop@example",
+		PublicKey: testKeyLaptop,
 	})
 	h.db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "desktop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5BBBBB desktop@example",
+		PublicKey: testKeyDesktop,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/authorized_keys", nil)
@@ -83,7 +89,7 @@ func TestListDevices(t *testing.T) {
 
 	h.db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA laptop@example",
+		PublicKey: testKeyLaptop,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/devices", nil)
@@ -126,7 +132,7 @@ func TestListDevices_EmptyReturnsArray(t *testing.T) {
 func TestCreateDevice(t *testing.T) {
 	h := setup(t)
 
-	payload := `{"name":"laptop","public_key":"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA laptop@example"}`
+	payload := `{"name":"laptop","public_key":"` + testKeyLaptop + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/devices", bytes.NewBufferString(payload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -154,7 +160,7 @@ func TestRevokeDevice(t *testing.T) {
 
 	dev, err := h.db.CreateDevice(models.CreateDeviceRequest{
 		Name:      "laptop",
-		PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA laptop@example",
+		PublicKey: testKeyLaptop,
 	})
 	if err != nil {
 		t.Fatalf("failed to create device: %v", err)

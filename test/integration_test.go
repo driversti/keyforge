@@ -83,9 +83,12 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	})
 
 	// b. Create device (with auth) — POST /api/v1/devices → 201
+	const testKeyLaptop = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbda9fDvF5RsoqRdX4EqZREGdC0qaS4LGb+rGuyQeEN test@laptop"
+	const testKeyServer = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFqAG13g7sbzvqitxQpTElf3QC7Izo/qTqYvsxEaqgB3 root@server"
+
 	var firstDeviceID string
 	t.Run("create first device", func(t *testing.T) {
-		body := `{"name":"test-laptop","public_key":"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey test@laptop","accepts_ssh":false,"tags":["test"]}`
+		body := `{"name":"test-laptop","public_key":"` + testKeyLaptop + `","accepts_ssh":false,"tags":["test"]}`
 		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, true)
 		defer resp.Body.Close()
 
@@ -106,7 +109,7 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 
 	// c. Create second device (server) — POST /api/v1/devices → 201
 	t.Run("create second device", func(t *testing.T) {
-		body := `{"name":"test-server","public_key":"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIServerKey root@server","accepts_ssh":true,"tags":["linux"]}`
+		body := `{"name":"test-server","public_key":"` + testKeyServer + `","accepts_ssh":true,"tags":["linux"]}`
 		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, true)
 		defer resp.Body.Close()
 
@@ -149,11 +152,11 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 		}
 		body := string(b)
 
-		if !strings.Contains(body, "TestKey") {
-			t.Fatal("expected authorized_keys to contain TestKey")
+		if !strings.Contains(body, "test@laptop") {
+			t.Fatal("expected authorized_keys to contain test@laptop key")
 		}
-		if !strings.Contains(body, "ServerKey") {
-			t.Fatal("expected authorized_keys to contain ServerKey")
+		if !strings.Contains(body, "root@server") {
+			t.Fatal("expected authorized_keys to contain root@server key")
 		}
 	})
 
@@ -183,11 +186,11 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 		}
 		body := string(b)
 
-		if strings.Contains(body, "TestKey") {
-			t.Fatal("expected authorized_keys to NOT contain TestKey after revoke")
+		if strings.Contains(body, "test@laptop") {
+			t.Fatal("expected authorized_keys to NOT contain test@laptop key after revoke")
 		}
-		if !strings.Contains(body, "ServerKey") {
-			t.Fatal("expected authorized_keys to still contain ServerKey")
+		if !strings.Contains(body, "root@server") {
+			t.Fatal("expected authorized_keys to still contain root@server key")
 		}
 	})
 
@@ -201,22 +204,52 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 		}
 	})
 
-	// i. Web UI pages load — GET / → 200, GET /authorized-keys → 200
-	t.Run("web UI root page", func(t *testing.T) {
-		resp := doRequest(t, client, "GET", ts.URL+"/", "", false)
+	// i. Web UI pages require auth — GET / without session → redirect to /login
+	t.Run("web UI root redirects to login", func(t *testing.T) {
+		// Disable redirects to capture the 303.
+		noRedirectClient := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		resp := doRequest(t, noRedirectClient, "GET", ts.URL+"/", "", false)
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected 200 for /, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("expected 303 redirect for /, got %d", resp.StatusCode)
+		}
+		loc := resp.Header.Get("Location")
+		if loc != "/login" {
+			t.Fatalf("expected redirect to /login, got %q", loc)
 		}
 	})
 
-	t.Run("web UI authorized-keys page", func(t *testing.T) {
-		resp := doRequest(t, client, "GET", ts.URL+"/authorized-keys", "", false)
+	// j. Web UI pages load with API key query param
+	t.Run("web UI root page with key param", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/?key="+testAPIKey, "", false)
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected 200 for /authorized-keys, got %d", resp.StatusCode)
+			t.Fatalf("expected 200 for /?key=..., got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("web UI authorized-keys page with key param", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/authorized-keys?key="+testAPIKey, "", false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for /authorized-keys?key=..., got %d", resp.StatusCode)
+		}
+	})
+
+	// k. Login page is accessible without auth.
+	t.Run("login page accessible", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/login", "", false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for /login, got %d", resp.StatusCode)
 		}
 	})
 }

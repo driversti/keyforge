@@ -1,12 +1,16 @@
 package web
 
 import (
+	"crypto/rand"
+	"crypto/subtle"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/driversti/keyforge/internal/db"
@@ -16,18 +20,94 @@ import (
 //go:embed templates static
 var Content embed.FS
 
+// SessionStore holds active session tokens in memory.
+type SessionStore struct {
+	mu     sync.RWMutex
+	tokens map[string]time.Time // token -> expiry
+}
+
+// NewSessionStore creates a new in-memory session store.
+func NewSessionStore() *SessionStore {
+	return &SessionStore{tokens: make(map[string]time.Time)}
+}
+
+// Create generates a new session token and stores it with a 24-hour expiry.
+func (s *SessionStore) Create() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	token := hex.EncodeToString(b)
+	s.mu.Lock()
+	s.tokens[token] = time.Now().Add(24 * time.Hour)
+	s.mu.Unlock()
+	return token, nil
+}
+
+// Valid checks whether a session token is valid and not expired.
+func (s *SessionStore) Valid(token string) bool {
+	s.mu.RLock()
+	expiry, ok := s.tokens[token]
+	s.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	if time.Now().After(expiry) {
+		s.Delete(token)
+		return false
+	}
+	return true
+}
+
+// Delete removes a session token.
+func (s *SessionStore) Delete(token string) {
+	s.mu.Lock()
+	delete(s.tokens, token)
+	s.mu.Unlock()
+}
+
+// SessionAuth returns middleware that checks for a valid session cookie or API key query param.
+func SessionAuth(apiKey string, sessions *SessionStore) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check session cookie.
+			if cookie, err := r.Cookie("keyforge_session"); err == nil {
+				if sessions.Valid(cookie.Value) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			// Check API key in query parameter.
+			if key := r.URL.Query().Get("key"); key != "" {
+				if subtle.ConstantTimeCompare([]byte(key), []byte(apiKey)) == 1 {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			// Redirect to login page.
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+		})
+	}
+}
+
 // Handler serves the web UI pages.
 type Handler struct {
 	db        *db.DB
 	funcMap   template.FuncMap
 	serverURL string
+	apiKey    string
+	sessions  *SessionStore
 }
 
 // NewHandler creates a new web UI handler.
-func NewHandler(database *db.DB, serverURL string) *Handler {
+func NewHandler(database *db.DB, serverURL string, apiKey string, sessions *SessionStore) *Handler {
 	return &Handler{
 		db:        database,
 		serverURL: serverURL,
+		apiKey:    apiKey,
+		sessions:  sessions,
 		funcMap: template.FuncMap{
 			"truncate": func(s string, n int) string {
 				if len(s) <= n {
@@ -137,6 +217,9 @@ func (h *Handler) AddDeviceSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	devID := device.ID
+	h.db.LogAudit("device.created", &devID, fmt.Sprintf("device %q registered via web UI", device.Name), r.RemoteAddr)
+
 	http.Redirect(w, r, "/?flash="+url.QueryEscape(fmt.Sprintf("Device %q registered successfully.", device.Name)), http.StatusSeeOther)
 }
 
@@ -166,6 +249,7 @@ func (h *Handler) RevokeDeviceAction(w http.ResponseWriter, r *http.Request, id 
 		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to revoke device."), http.StatusSeeOther)
 		return
 	}
+	h.db.LogAudit("device.revoked", &id, "device revoked via web UI", r.RemoteAddr)
 	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device revoked."), http.StatusSeeOther)
 }
 
@@ -175,14 +259,87 @@ func (h *Handler) ReactivateDeviceAction(w http.ResponseWriter, r *http.Request,
 		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to reactivate device."), http.StatusSeeOther)
 		return
 	}
+	h.db.LogAudit("device.reactivated", &id, "device reactivated via web UI", r.RemoteAddr)
 	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device reactivated."), http.StatusSeeOther)
 }
 
 // DeleteDeviceAction deletes a device and redirects to the device list.
 func (h *Handler) DeleteDeviceAction(w http.ResponseWriter, r *http.Request, id string) {
+	// Get device first for audit log details.
+	device, _ := h.db.GetDevice(id)
+
 	if err := h.db.DeleteDevice(id); err != nil {
 		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to delete device."), http.StatusSeeOther)
 		return
 	}
+
+	details := "device deleted via web UI"
+	if device != nil {
+		details = fmt.Sprintf("device %q deleted via web UI", device.Name)
+	}
+	h.db.LogAudit("device.deleted", &id, details, r.RemoteAddr)
 	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device deleted."), http.StatusSeeOther)
+}
+
+// LoginPage renders the login form.
+func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
+	// If already authenticated, redirect to home.
+	if cookie, err := r.Cookie("keyforge_session"); err == nil {
+		if h.sessions.Valid(cookie.Value) {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	h.renderPage(w, "login.html", map[string]any{
+		"Error": r.URL.Query().Get("error"),
+	})
+}
+
+// LoginSubmit handles the login form submission.
+func (h *Handler) LoginSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	key := strings.TrimSpace(r.FormValue("api_key"))
+	if subtle.ConstantTimeCompare([]byte(key), []byte(h.apiKey)) != 1 {
+		http.Redirect(w, r, "/login?error="+url.QueryEscape("Invalid API key."), http.StatusSeeOther)
+		return
+	}
+
+	token, err := h.sessions.Create()
+	if err != nil {
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "keyforge_session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400, // 24 hours
+	})
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// LogoutHandler clears the session and redirects to login.
+func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie("keyforge_session"); err == nil {
+		h.sessions.Delete(cookie.Value)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "keyforge_session",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1,
+	})
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }

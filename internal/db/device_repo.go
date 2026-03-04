@@ -1,7 +1,6 @@
 package db
 
 import (
-	"crypto/md5"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/driversti/keyforge/internal/models"
 )
@@ -20,7 +20,17 @@ var ErrNotFound = errors.New("not found")
 // CreateDevice inserts a new device into the database and returns it.
 func (d *DB) CreateDevice(req models.CreateDeviceRequest) (*models.Device, error) {
 	id := uuid.New().String()
-	fingerprint := computeFingerprint(req.PublicKey)
+	fingerprint, err := computeFingerprint(req.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for duplicate public key.
+	var existingName string
+	err = d.DB.QueryRow("SELECT name FROM devices WHERE public_key = ?", req.PublicKey).Scan(&existingName)
+	if err == nil {
+		return nil, fmt.Errorf("public key already registered to device %q", existingName)
+	}
 
 	tags := req.Tags
 	if tags == nil {
@@ -262,14 +272,14 @@ func scanDeviceRows(rows *sql.Rows) ([]models.Device, error) {
 	return devices, nil
 }
 
-// computeFingerprint computes the MD5 fingerprint of a public key as colon-separated hex.
-func computeFingerprint(publicKey string) string {
-	hash := md5.Sum([]byte(publicKey))
-	parts := make([]string, len(hash))
-	for i, b := range hash {
-		parts[i] = fmt.Sprintf("%02x", b)
+// computeFingerprint parses an SSH public key and returns its SHA-256 fingerprint.
+// Returns an error if the key is not a valid SSH public key.
+func computeFingerprint(publicKey string) (string, error) {
+	key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(publicKey))
+	if err != nil {
+		return "", fmt.Errorf("invalid SSH public key: %w", err)
 	}
-	return strings.Join(parts, ":")
+	return ssh.FingerprintSHA256(key), nil
 }
 
 // isUniqueConstraintError checks if an error is a SQLite UNIQUE constraint violation.
