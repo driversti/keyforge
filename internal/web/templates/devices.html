@@ -1,0 +1,64 @@
+{{define "title"}}Devices{{end}}
+
+{{define "content"}}
+<div class="top-bar">
+    <h1>Devices</h1>
+    <a href="/add" class="btn btn-primary">Add Device</a>
+</div>
+
+{{if .Flash}}
+<div class="flash">{{.Flash}}</div>
+{{end}}
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>SSH</th>
+            <th>Fingerprint</th>
+            <th>Tags</th>
+            <th>Registered</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{if .Devices}}
+        {{range .Devices}}
+        <tr>
+            <td>{{.Name}}</td>
+            <td><span class="badge {{if eq (print .Status) "active"}}active{{else}}revoked{{end}}">{{.Status}}</span></td>
+            <td>{{if .AcceptsSSH}}yes{{else}}no{{end}}</td>
+            <td><span class="fingerprint" title="{{.Fingerprint}}">{{truncate .Fingerprint 24}}</span></td>
+            <td>
+                <div class="tags">
+                    {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+                </div>
+            </td>
+            <td>{{formatDate .RegisteredAt}}</td>
+            <td>
+                <div class="actions">
+                    {{if eq (print .Status) "active"}}
+                    <form method="POST" action="/devices/{{.ID}}/revoke">
+                        <button type="submit" class="btn btn-outline btn-sm">Revoke</button>
+                    </form>
+                    {{else}}
+                    <form method="POST" action="/devices/{{.ID}}/reactivate">
+                        <button type="submit" class="btn btn-outline btn-sm">Reactivate</button>
+                    </form>
+                    {{end}}
+                    <form method="POST" action="/devices/{{.ID}}/delete" onsubmit="return confirm('Delete this device?')">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+        {{end}}
+        {{else}}
+        <tr>
+            <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 2rem;">No devices registered yet.</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}
