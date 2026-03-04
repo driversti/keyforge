@@ -1,10 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/driversti/keyforge/internal/auth"
+	"github.com/driversti/keyforge/internal/db"
+	"github.com/driversti/keyforge/internal/server"
 )
 
 var (
@@ -36,9 +42,58 @@ func init() {
 
 func runServe(cmd *cobra.Command, args []string) error {
 	port, _ := cmd.Flags().GetInt("port")
-	data, _ := cmd.Flags().GetString("data")
-	fmt.Printf("Starting KeyForge server on port %d with data dir %s\n", port, data)
-	return nil
+	dataDir, _ := cmd.Flags().GetString("data")
+
+	// Ensure data directory exists.
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return fmt.Errorf("create data directory: %w", err)
+	}
+
+	// Open database.
+	dsn := filepath.Join(dataDir, "keyforge.db")
+	database, err := db.New(dsn)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer database.Close()
+
+	// Load or generate API key.
+	key, err := loadOrGenerateAPIKey(database)
+	if err != nil {
+		return fmt.Errorf("api key setup: %w", err)
+	}
+
+	srv := server.New(database, key)
+	return srv.ListenAndServe(port)
+}
+
+// loadOrGenerateAPIKey retrieves the API key from the settings table. If none
+// exists, it generates a new one, stores it, and prints it to stdout.
+func loadOrGenerateAPIKey(database *db.DB) (string, error) {
+	var key string
+	err := database.DB.QueryRow("SELECT value FROM settings WHERE key = 'api_key'").Scan(&key)
+	if err == nil {
+		return key, nil
+	}
+	if err != sql.ErrNoRows {
+		return "", fmt.Errorf("query api_key: %w", err)
+	}
+
+	// Generate and store a new key.
+	key, err = auth.GenerateAPIKey()
+	if err != nil {
+		return "", fmt.Errorf("generate api key: %w", err)
+	}
+
+	if _, err := database.DB.Exec("INSERT INTO settings (key, value) VALUES ('api_key', ?)", key); err != nil {
+		return "", fmt.Errorf("store api key: %w", err)
+	}
+
+	fmt.Println("=== Generated API Key (save this!) ===")
+	fmt.Println(key)
+	fmt.Println("=======================================")
+
+	return key, nil
 }
 
 func main() {
