@@ -1,1 +1,8 @@
 bin/
+keyforge-data/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+.idea/
+/keyforge
