@@ -38,6 +38,8 @@ func init() {
 	serveCmd.Flags().String("data", "./keyforge-data", "Data directory path")
 
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(newDeviceCmd())
+	rootCmd.AddCommand(newKeysCmd())
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -63,7 +65,10 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("api key setup: %w", err)
 	}
 
-	srv := server.New(database, key)
+	srv, err := server.New(database, key, fmt.Sprintf("http://localhost:%d", port))
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
+	}
 	return srv.ListenAndServe(port)
 }
 

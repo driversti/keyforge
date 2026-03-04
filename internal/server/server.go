@@ -2,37 +2,60 @@ package server
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 
 	"github.com/driversti/keyforge/internal/api"
 	"github.com/driversti/keyforge/internal/auth"
 	"github.com/driversti/keyforge/internal/db"
+	"github.com/driversti/keyforge/internal/web"
 )
 
 // Server holds the HTTP server dependencies and routes.
 type Server struct {
 	db         *db.DB
 	apiHandler *api.Handler
+	webHandler *web.Handler
 	apiKey     string
 	mux        *http.ServeMux
 }
 
 // New creates a new Server, wires up all routes, and returns it.
-func New(database *db.DB, apiKey string) *Server {
+func New(database *db.DB, apiKey string, serverURL string) (*Server, error) {
 	s := &Server{
 		db:         database,
 		apiHandler: api.NewHandler(database),
+		webHandler: web.NewHandler(database, serverURL),
 		apiKey:     apiKey,
 		mux:        http.NewServeMux(),
 	}
 	s.routes()
-	return s
+	return s, nil
 }
 
 func (s *Server) routes() {
 	requireKey := auth.RequireAPIKey(s.apiKey)
 
-	// Public routes (no auth).
+	// Static files.
+	staticFS, _ := fs.Sub(web.Content, "static")
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+
+	// Web UI routes.
+	s.mux.HandleFunc("GET /{$}", s.webHandler.DevicesPage)
+	s.mux.HandleFunc("GET /add", s.webHandler.AddDevicePage)
+	s.mux.HandleFunc("POST /add", s.webHandler.AddDeviceSubmit)
+	s.mux.HandleFunc("GET /authorized-keys", s.webHandler.AuthorizedKeysPage)
+	s.mux.HandleFunc("POST /devices/{id}/revoke", func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.RevokeDeviceAction(w, r, r.PathValue("id"))
+	})
+	s.mux.HandleFunc("POST /devices/{id}/reactivate", func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.ReactivateDeviceAction(w, r, r.PathValue("id"))
+	})
+	s.mux.HandleFunc("POST /devices/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.DeleteDeviceAction(w, r, r.PathValue("id"))
+	})
+
+	// Public API routes (no auth).
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)
 	s.mux.HandleFunc("GET /api/v1/health", s.apiHandler.HealthCheck)
 
