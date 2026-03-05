@@ -1,0 +1,41 @@
+{{define "title"}}Audit Log{{end}}
+{{define "content"}}
+<div class="top-bar">
+    <h1>Audit Log</h1>
+</div>
+
+{{if .Entries}}
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Details</th>
+            <th>Source IP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Entries}}
+        <tr>
+            <td style="white-space:nowrap">{{formatDate .CreatedAt}}</td>
+            <td><span class="badge {{actionBadgeClass .Action}}">{{.Action}}</span></td>
+            <td>{{.Details}}</td>
+            <td style="font-family:monospace;font-size:0.85rem;color:var(--text-muted)">{{.SourceIP}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {{if gt .Offset 0}}
+    <a href="/audit?page={{prevPage .Page}}" class="btn btn-outline btn-sm">&larr; Newer</a>
+    {{end}}
+    <span class="page-info">Page {{.Page}} of {{.TotalPages}}</span>
+    {{if lt .Page .TotalPages}}
+    <a href="/audit?page={{nextPage .Page}}" class="btn btn-outline btn-sm">Older &rarr;</a>
+    {{end}}
+</div>
+{{else}}
+<p style="color:var(--text-muted)">No audit log entries yet.</p>
+{{end}}
+{{end}}

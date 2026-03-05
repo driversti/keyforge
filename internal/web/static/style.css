@@ -343,6 +343,21 @@ tr:hover td {
     margin-bottom: 0.25rem;
 }
 
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1rem 0;
+}
+
+.page-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     nav .container {

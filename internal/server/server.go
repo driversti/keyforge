@@ -85,6 +85,9 @@ func (s *Server) routes() {
 		s.webHandler.DeleteTokenAction(w, r, r.PathValue("id"))
 	})))
 
+	// Audit log web route (session auth required).
+	s.mux.Handle("GET /audit", requireSession(http.HandlerFunc(s.webHandler.AuditPage)))
+
 	// Token API routes (API key auth required).
 	s.mux.Handle("POST /api/v1/tokens", requireKey(http.HandlerFunc(s.apiHandler.CreateToken)))
 	s.mux.Handle("GET /api/v1/tokens", requireKey(http.HandlerFunc(s.apiHandler.ListTokens)))

@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -117,6 +118,25 @@ func NewHandler(database *db.DB, serverURL string, apiKey string, sessions *Sess
 			},
 			"formatDate": func(t time.Time) string {
 				return t.Format("2006-01-02")
+			},
+			"actionBadgeClass": func(action string) string {
+				switch {
+				case strings.Contains(action, "created"):
+					return "active"
+				case strings.Contains(action, "revoked"), strings.Contains(action, "deleted"):
+					return "revoked"
+				default:
+					return ""
+				}
+			},
+			"prevPage": func(page int) int {
+				if page > 1 {
+					return page - 1
+				}
+				return 1
+			},
+			"nextPage": func(page int) int {
+				return page + 1
 			},
 		},
 	}
@@ -338,6 +358,45 @@ func (h *Handler) DeleteTokenAction(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Token deleted."), http.StatusSeeOther)
+}
+
+// AuditPage lists audit log entries with pagination.
+func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
+	const perPage = 50
+
+	page := 1
+	if v := r.URL.Query().Get("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			page = n
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	entries, err := h.db.ListAudit(perPage, offset)
+	if err != nil {
+		http.Error(w, "failed to list audit log", http.StatusInternalServerError)
+		return
+	}
+
+	total, err := h.db.CountAudit()
+	if err != nil {
+		http.Error(w, "failed to count audit entries", http.StatusInternalServerError)
+		return
+	}
+
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	h.renderPage(w, "audit.html", map[string]any{
+		"Entries":    entries,
+		"Page":       page,
+		"TotalPages": totalPages,
+		"Offset":     offset,
+		"Total":      total,
+	})
 }
 
 // LoginPage renders the login form.
