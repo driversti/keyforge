@@ -1,11 +1,13 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/driversti/keyforge/internal/db"
 	"github.com/driversti/keyforge/internal/models"
@@ -13,12 +15,26 @@ import (
 
 // Handler holds the database dependency for all API handlers.
 type Handler struct {
-	db *db.DB
+	db     *db.DB
+	apiKey string
 }
 
-// NewHandler creates a new Handler with the given database.
-func NewHandler(database *db.DB) *Handler {
-	return &Handler{db: database}
+// NewHandler creates a new Handler with the given database and API key.
+func NewHandler(database *db.DB, apiKey string) *Handler {
+	return &Handler{db: database, apiKey: apiKey}
+}
+
+// isAPIKeyValid checks whether the request carries a valid Bearer token.
+func (h *Handler) isAPIKeyValid(r *http.Request) bool {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return false
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == authHeader {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(h.apiKey)) == 1
 }
 
 // HealthCheck returns a simple health status.
@@ -73,6 +89,7 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // CreateDevice creates a new device from the JSON request body.
+// Auth: accepts either a valid API key (Bearer token) or an enrollment token in the body.
 func (h *Handler) CreateDevice(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
 
@@ -80,6 +97,19 @@ func (h *Handler) CreateDevice(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 		return
+	}
+
+	// Auth: check API key OR enrollment token.
+	if !h.isAPIKeyValid(r) {
+		if req.EnrollmentToken == "" {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "API key or enrollment token required"})
+			return
+		}
+		_, err := h.db.ValidateAndBurnToken(req.EnrollmentToken)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
+			return
+		}
 	}
 
 	if req.Name == "" || req.PublicKey == "" {
@@ -203,6 +233,72 @@ func (h *Handler) ReactivateDevice(w http.ResponseWriter, r *http.Request, id st
 	}
 
 	writeJSON(w, http.StatusOK, device)
+}
+
+// createTokenRequest is the JSON payload for creating an enrollment token.
+type createTokenRequest struct {
+	Label     string `json:"label"`
+	ExpiresIn string `json:"expires_in"`
+}
+
+// CreateToken creates a new enrollment token.
+func (h *Handler) CreateToken(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	var req createTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		return
+	}
+
+	if req.ExpiresIn == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expires_in is required"})
+		return
+	}
+
+	duration, err := time.ParseDuration(req.ExpiresIn)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid expires_in duration"})
+		return
+	}
+
+	expiresAt := time.Now().Add(duration)
+	token, err := h.db.CreateToken(req.Label, expiresAt)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create token"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, token)
+}
+
+// ListTokens returns all enrollment tokens as JSON.
+func (h *Handler) ListTokens(w http.ResponseWriter, r *http.Request) {
+	tokens, err := h.db.ListTokens()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list tokens"})
+		return
+	}
+
+	if tokens == nil {
+		tokens = []models.EnrollmentToken{}
+	}
+
+	writeJSON(w, http.StatusOK, tokens)
+}
+
+// DeleteToken removes an enrollment token by ID.
+func (h *Handler) DeleteToken(w http.ResponseWriter, r *http.Request, id string) {
+	if err := h.db.DeleteToken(id); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "token not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete token"})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // writeJSON encodes data as JSON and writes it to the response with the given

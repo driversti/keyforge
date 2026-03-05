@@ -24,7 +24,7 @@ func setup(t *testing.T) *Handler {
 		t.Fatalf("failed to create in-memory DB: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
-	return NewHandler(database)
+	return NewHandler(database, "test-api-key")
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -135,6 +135,7 @@ func TestCreateDevice(t *testing.T) {
 	payload := `{"name":"laptop","public_key":"` + testKeyLaptop + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/devices", bytes.NewBufferString(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer test-api-key")
 	rec := httptest.NewRecorder()
 
 	h.CreateDevice(rec, req)

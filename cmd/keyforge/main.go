@@ -40,6 +40,7 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(newDeviceCmd())
 	rootCmd.AddCommand(newKeysCmd())
+	rootCmd.AddCommand(newTokenCmd())
 }
 
 func runServe(cmd *cobra.Command, args []string) error {

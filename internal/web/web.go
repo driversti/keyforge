@@ -281,6 +281,65 @@ func (h *Handler) DeleteDeviceAction(w http.ResponseWriter, r *http.Request, id 
 	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device deleted."), http.StatusSeeOther)
 }
 
+// TokensPage lists all enrollment tokens.
+func (h *Handler) TokensPage(w http.ResponseWriter, r *http.Request) {
+	tokens, err := h.db.ListTokens()
+	if err != nil {
+		http.Error(w, "failed to list tokens", http.StatusInternalServerError)
+		return
+	}
+
+	flash := r.URL.Query().Get("flash")
+	createdToken := r.URL.Query().Get("created_token")
+
+	h.renderPage(w, "tokens.html", map[string]any{
+		"Tokens":       tokens,
+		"Flash":        flash,
+		"CreatedToken": createdToken,
+		"Now":          time.Now().UTC(),
+	})
+}
+
+// CreateTokenSubmit handles the create token form submission.
+func (h *Handler) CreateTokenSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	label := strings.TrimSpace(r.FormValue("label"))
+	expiresIn := strings.TrimSpace(r.FormValue("expires_in"))
+
+	if expiresIn == "" {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Expiry duration is required."), http.StatusSeeOther)
+		return
+	}
+
+	duration, err := time.ParseDuration(expiresIn)
+	if err != nil {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Invalid expiry duration."), http.StatusSeeOther)
+		return
+	}
+
+	expiresAt := time.Now().Add(duration)
+	token, err := h.db.CreateToken(label, expiresAt)
+	if err != nil {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Failed to create token."), http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Token created successfully.")+"&created_token="+url.QueryEscape(token.Token), http.StatusSeeOther)
+}
+
+// DeleteTokenAction deletes an enrollment token and redirects to the token list.
+func (h *Handler) DeleteTokenAction(w http.ResponseWriter, r *http.Request, id string) {
+	if err := h.db.DeleteToken(id); err != nil {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Failed to delete token."), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Token deleted."), http.StatusSeeOther)
+}
+
 // LoginPage renders the login form.
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	// If already authenticated, redirect to home.

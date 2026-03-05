@@ -26,7 +26,7 @@ func New(database *db.DB, apiKey string, serverURL string) (*Server, error) {
 	sessions := web.NewSessionStore()
 	s := &Server{
 		db:         database,
-		apiHandler: api.NewHandler(database),
+		apiHandler: api.NewHandler(database, apiKey),
 		webHandler: web.NewHandler(database, serverURL, apiKey, sessions),
 		apiKey:     apiKey,
 		sessions:   sessions,
@@ -68,9 +68,23 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)
 	s.mux.HandleFunc("GET /api/v1/health", s.apiHandler.HealthCheck)
 
+	// Token web routes (session auth required).
+	s.mux.Handle("GET /tokens", requireSession(http.HandlerFunc(s.webHandler.TokensPage)))
+	s.mux.Handle("POST /tokens", requireSession(http.HandlerFunc(s.webHandler.CreateTokenSubmit)))
+	s.mux.Handle("POST /tokens/{id}/delete", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.DeleteTokenAction(w, r, r.PathValue("id"))
+	})))
+
+	// Token API routes (API key auth required).
+	s.mux.Handle("POST /api/v1/tokens", requireKey(http.HandlerFunc(s.apiHandler.CreateToken)))
+	s.mux.Handle("GET /api/v1/tokens", requireKey(http.HandlerFunc(s.apiHandler.ListTokens)))
+	s.mux.Handle("DELETE /api/v1/tokens/{id}", requireKey(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.apiHandler.DeleteToken(w, r, r.PathValue("id"))
+	})))
+
 	// Protected routes.
 	s.mux.Handle("GET /api/v1/devices", requireKey(http.HandlerFunc(s.apiHandler.ListDevices)))
-	s.mux.Handle("POST /api/v1/devices", requireKey(http.HandlerFunc(s.apiHandler.CreateDevice)))
+	s.mux.HandleFunc("POST /api/v1/devices", s.apiHandler.CreateDevice) // auth handled inside handler
 
 	s.mux.Handle("GET /api/v1/devices/{id}", requireKey(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.apiHandler.GetDevice(w, r, r.PathValue("id"))
