@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/driversti/keyforge/internal/keys"
 )
@@ -94,6 +97,9 @@ func fetchKeysWithCache(noCache bool) (string, bool, error) {
 				keys.WriteCache(cachePath, keysContent)
 			}
 		}
+
+		// Best-effort heartbeat so the server updates last_seen.
+		sendHeartbeat()
 
 		return keysContent, false, nil
 	}
@@ -214,4 +220,35 @@ func setupCron(interval string) error {
 
 	fmt.Printf("Cron job installed: %s\n", cronLine)
 	return nil
+}
+
+func sendHeartbeat() {
+	// Read local public key to get fingerprint.
+	keyPath := filepath.Join(mustHomeDir(), ".ssh", "id_ed25519.pub")
+	pubKeyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		return // best-effort, don't fail
+	}
+
+	parsed, _, _, _, err := ssh.ParseAuthorizedKey(pubKeyData)
+	if err != nil {
+		return
+	}
+	fingerprint := ssh.FingerprintSHA256(parsed)
+
+	body, _ := json.Marshal(map[string]string{"fingerprint": fingerprint})
+	url := strings.TrimRight(serverURL, "/") + "/api/v1/heartbeat"
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+	if err == nil {
+		resp.Body.Close()
+	}
+}
+
+func mustHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
 }

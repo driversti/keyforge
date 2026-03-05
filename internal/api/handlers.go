@@ -43,18 +43,40 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// GetAuthorizedKeys returns all active public keys as plain text, one per line.
+// GetAuthorizedKeys returns all active public keys.
+// With ?format=json it returns a JSON array; otherwise plain text (one key per line).
 func (h *Handler) GetAuthorizedKeys(w http.ResponseWriter, r *http.Request) {
 	devices, err := h.db.GetActivePublicKeys()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get keys"})
+		http.Error(w, "failed to get keys", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	for _, dev := range devices {
-		fmt.Fprintln(w, dev.PublicKey)
+	if r.URL.Query().Get("format") == "json" {
+		type keyEntry struct {
+			Name        string `json:"name"`
+			PublicKey   string `json:"public_key"`
+			Fingerprint string `json:"fingerprint"`
+		}
+		var entries []keyEntry
+		for _, d := range devices {
+			entries = append(entries, keyEntry{
+				Name:        d.Name,
+				PublicKey:   d.PublicKey,
+				Fingerprint: d.Fingerprint,
+			})
+		}
+		if entries == nil {
+			entries = []keyEntry{}
+		}
+		writeJSON(w, http.StatusOK, entries)
+		return
+	}
+
+	// Default: plain text.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	for _, d := range devices {
+		fmt.Fprintln(w, d.PublicKey)
 	}
 }
 
@@ -340,6 +362,49 @@ func (h *Handler) ListAudit(w http.ResponseWriter, r *http.Request) {
 		"limit":   limit,
 		"offset":  offset,
 	})
+}
+
+// Heartbeat updates the last_seen timestamp for a device identified by fingerprint.
+func (h *Handler) Heartbeat(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Fingerprint string `json:"fingerprint"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.Fingerprint == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "fingerprint is required"})
+		return
+	}
+
+	// Find device by fingerprint.
+	devices, err := h.db.ListDevices()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list devices"})
+		return
+	}
+
+	var deviceID string
+	for _, d := range devices {
+		if d.Fingerprint == req.Fingerprint {
+			deviceID = d.ID
+			break
+		}
+	}
+
+	if deviceID == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "device not found"})
+		return
+	}
+
+	if err := h.db.UpdateLastSeen(deviceID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update last_seen"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // writeJSON encodes data as JSON and writes it to the response with the given

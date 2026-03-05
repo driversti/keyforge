@@ -71,8 +71,8 @@ func TestGetAuthorizedKeys(t *testing.T) {
 	}
 
 	ct := rec.Header().Get("Content-Type")
-	if ct != "text/plain" {
-		t.Errorf("expected Content-Type 'text/plain', got %q", ct)
+	if ct != "text/plain; charset=utf-8" {
+		t.Errorf("expected Content-Type 'text/plain; charset=utf-8', got %q", ct)
 	}
 
 	body := rec.Body.String()

@@ -72,6 +72,7 @@ func (s *Server) routes() {
 	// Public API routes (no auth).
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)
 	s.mux.HandleFunc("GET /api/v1/health", s.apiHandler.HealthCheck)
+	s.mux.HandleFunc("POST /api/v1/heartbeat", s.apiHandler.Heartbeat)
 
 	// Serve the curl-pipeable enrollment script.
 	s.mux.HandleFunc("GET /enroll.sh", func(w http.ResponseWriter, r *http.Request) {
