@@ -51,6 +51,7 @@
             <td>{{formatDate .RegisteredAt}}</td>
             <td>
                 <div class="actions">
+                    <a href="/devices/{{.ID}}/edit" class="btn btn-outline btn-sm">Edit</a>
                     {{if eq (print .Status) "active"}}
                     <form method="POST" action="/devices/{{.ID}}/revoke">
                         <button type="submit" class="btn btn-outline btn-sm">Revoke</button>

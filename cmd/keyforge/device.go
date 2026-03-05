@@ -85,7 +85,7 @@ func newDeviceCmd() *cobra.Command {
 	cmd.AddCommand(newDeviceRevokeCmd())
 	cmd.AddCommand(newDeviceReactivateCmd())
 	cmd.AddCommand(newDeviceDeleteCmd())
-
+	cmd.AddCommand(newDeviceEditCmd())
 	return cmd
 }
 
@@ -287,5 +287,78 @@ func newDeviceDeleteCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "Device name (required)")
+	return cmd
+}
+
+func newDeviceEditCmd() *cobra.Command {
+	var (
+		editName      string
+		editNewName   string
+		editTags      string
+		editAcceptSSH string // "true", "false", or "" (unchanged)
+	)
+
+	cmd := &cobra.Command{
+		Use:   "edit",
+		Short: "Edit a device's name, tags, or SSH acceptance",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if editName == "" {
+				return fmt.Errorf("--name is required")
+			}
+
+			id, err := resolveDeviceID(editName)
+			if err != nil {
+				return err
+			}
+
+			// Build update payload.
+			payload := map[string]any{}
+			if editNewName != "" {
+				payload["name"] = editNewName
+			}
+			if editTags != "" {
+				var tags []string
+				for _, t := range strings.Split(editTags, ",") {
+					t = strings.TrimSpace(t)
+					if t != "" {
+						tags = append(tags, t)
+					}
+				}
+				payload["tags"] = tags
+			}
+			if editAcceptSSH == "true" {
+				v := true
+				payload["accepts_ssh"] = v
+			} else if editAcceptSSH == "false" {
+				v := false
+				payload["accepts_ssh"] = v
+			}
+
+			if len(payload) == 0 {
+				return fmt.Errorf("nothing to update — specify --new-name, --tags, or --accept-ssh")
+			}
+
+			body, _ := json.Marshal(payload)
+			resp, err := apiRequest("PATCH", "/api/v1/devices/"+id, bytes.NewReader(body))
+			if err != nil {
+				return fmt.Errorf("update device: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				respBody, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server error (%d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+			}
+
+			fmt.Printf("Device %q updated.\n", editName)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&editName, "name", "", "Device name to edit (required)")
+	cmd.Flags().StringVar(&editNewName, "new-name", "", "New device name")
+	cmd.Flags().StringVar(&editTags, "tags", "", "New tags (comma-separated, replaces existing)")
+	cmd.Flags().StringVar(&editAcceptSSH, "accept-ssh", "", "Set SSH acceptance (true/false)")
+
 	return cmd
 }

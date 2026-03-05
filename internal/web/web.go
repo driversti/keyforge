@@ -348,6 +348,81 @@ func (h *Handler) DeleteDeviceAction(w http.ResponseWriter, r *http.Request, id 
 	http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device deleted."), http.StatusSeeOther)
 }
 
+// EditDevicePage renders the edit device form.
+func (h *Handler) EditDevicePage(w http.ResponseWriter, r *http.Request, id string) {
+	device, err := h.db.GetDevice(id)
+	if err != nil {
+		http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device not found."), http.StatusSeeOther)
+		return
+	}
+
+	h.renderPage(w, "edit_device.html", map[string]any{
+		"Device":     device,
+		"TagsString": strings.Join(device.Tags, ", "),
+		"Error":      "",
+	})
+}
+
+// EditDeviceSubmit handles the edit device form submission.
+func (h *Handler) EditDeviceSubmit(w http.ResponseWriter, r *http.Request, id string) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	device, err := h.db.GetDevice(id)
+	if err != nil {
+		http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device not found."), http.StatusSeeOther)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	tagsRaw := strings.TrimSpace(r.FormValue("tags"))
+	acceptsSSH := r.FormValue("accepts_ssh") == "true"
+
+	if name == "" {
+		h.renderPage(w, "edit_device.html", map[string]any{
+			"Device":     device,
+			"TagsString": tagsRaw,
+			"Error":      "Name is required.",
+		})
+		return
+	}
+
+	// Parse tags.
+	var tags []string
+	if tagsRaw != "" {
+		for _, t := range strings.Split(tagsRaw, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+
+	req := models.UpdateDeviceRequest{
+		Name:       &name,
+		AcceptsSSH: &acceptsSSH,
+		Tags:       tags,
+	}
+
+	if err := h.db.UpdateDevice(id, req); err != nil {
+		h.renderPage(w, "edit_device.html", map[string]any{
+			"Device":     device,
+			"TagsString": tagsRaw,
+			"Error":      err.Error(),
+		})
+		return
+	}
+
+	h.db.LogAudit("device.updated", &id, fmt.Sprintf("device %q updated via web UI", name), r.RemoteAddr)
+
+	http.Redirect(w, r, "/devices?flash="+url.QueryEscape(fmt.Sprintf("Device %q updated.", name)), http.StatusSeeOther)
+}
+
 // TokensPage lists all enrollment tokens.
 func (h *Handler) TokensPage(w http.ResponseWriter, r *http.Request) {
 	tokens, err := h.db.ListTokens()

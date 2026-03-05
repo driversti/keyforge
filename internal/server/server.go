@@ -68,6 +68,12 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /devices/{id}/delete", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.webHandler.DeleteDeviceAction(w, r, r.PathValue("id"))
 	})))
+	s.mux.Handle("GET /devices/{id}/edit", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.EditDevicePage(w, r, r.PathValue("id"))
+	})))
+	s.mux.Handle("POST /devices/{id}/edit", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.EditDeviceSubmit(w, r, r.PathValue("id"))
+	})))
 
 	// Public API routes (no auth).
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)
