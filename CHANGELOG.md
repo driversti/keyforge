@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.6] - 2026-03-05
+
+### Fixed
+- Crontab installation failing with "bad minute" on BusyBox/Alpine shells due to `echo` interpreting escape sequences
+
 ## [v0.2.5] - 2026-03-05
 
 ### Changed
