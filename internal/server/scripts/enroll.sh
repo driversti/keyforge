@@ -1,0 +1,104 @@
+#!/bin/sh
+# KeyForge enrollment script
+# Usage: curl -sSL https://keyforge.example.com/enroll.sh | sh -s -- --name "device-name" --token "abc123"
+#
+# This script:
+# 1. Generates an SSH key pair (if none exists)
+# 2. Registers the public key with the KeyForge server
+# 3. Optionally installs authorized_keys and sets up sync
+
+set -e
+
+# Parse arguments
+NAME=""
+TOKEN=""
+ACCEPT_SSH=""
+SERVER_URL=""
+KEY_PATH="$HOME/.ssh/id_ed25519"
+SYNC_INTERVAL=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --name) NAME="$2"; shift 2;;
+        --token) TOKEN="$2"; shift 2;;
+        --accept-ssh) ACCEPT_SSH="true"; shift;;
+        --server) SERVER_URL="$2"; shift 2;;
+        --key) KEY_PATH="$2"; shift 2;;
+        --sync-interval) SYNC_INTERVAL="$2"; shift 2;;
+        *) echo "Unknown option: $1"; exit 1;;
+    esac
+done
+
+# Validate required args
+if [ -z "$NAME" ] || [ -z "$TOKEN" ]; then
+    echo "Usage: enroll.sh --name <device-name> --token <enrollment-token> [--server <url>] [--accept-ssh] [--sync-interval 15m]"
+    exit 1
+fi
+
+# If SERVER_URL not set, try to detect from KEYFORGE_SERVER env or use default
+if [ -z "$SERVER_URL" ]; then
+    SERVER_URL="${KEYFORGE_SERVER:-http://localhost:8080}"
+fi
+
+# Generate SSH key if needed
+if [ ! -f "$KEY_PATH" ]; then
+    echo "Generating SSH key pair..."
+    mkdir -p "$(dirname "$KEY_PATH")"
+    ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" -q
+    echo "Key pair generated at $KEY_PATH"
+else
+    echo "Using existing SSH key at $KEY_PATH"
+fi
+
+# Read public key
+PUB_KEY=$(cat "${KEY_PATH}.pub")
+
+# Register with server
+echo "Registering device '$NAME' with KeyForge..."
+RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "$SERVER_URL/api/v1/devices" \
+    -H "Content-Type: application/json" \
+    -d "{\"name\":\"$NAME\",\"public_key\":\"$PUB_KEY\",\"accepts_ssh\":${ACCEPT_SSH:-false},\"enrollment_token\":\"$TOKEN\"}")
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+
+if [ "$HTTP_CODE" != "201" ]; then
+    echo "Registration failed ($HTTP_CODE): $BODY"
+    exit 1
+fi
+
+echo "Device '$NAME' enrolled successfully!"
+
+# If accept-ssh, install authorized keys
+if [ "$ACCEPT_SSH" = "true" ]; then
+    echo "Fetching authorized keys..."
+    KEYS=$(curl -sS "$SERVER_URL/api/v1/authorized_keys")
+
+    HEADER="# --- KeyForge Managed Keys (DO NOT EDIT) ---"
+    FOOTER="# --- End KeyForge Managed Keys ---"
+    AUTH_FILE="$HOME/.ssh/authorized_keys"
+
+    # Remove existing managed section if present
+    if [ -f "$AUTH_FILE" ] && grep -q "$HEADER" "$AUTH_FILE"; then
+        sed -i.bak "/$HEADER/,/$FOOTER/d" "$AUTH_FILE"
+        rm -f "$AUTH_FILE.bak"
+    fi
+
+    # Append managed section
+    printf "\n%s\n%s\n%s\n" "$HEADER" "$KEYS" "$FOOTER" >> "$AUTH_FILE"
+    chmod 600 "$AUTH_FILE"
+    echo "Authorized keys installed to $AUTH_FILE"
+
+    # Set up cron if requested
+    if [ -n "$SYNC_INTERVAL" ]; then
+        # Convert interval to cron expression
+        MINUTES=$(echo "$SYNC_INTERVAL" | sed 's/m$//')
+        CRON_EXPR="*/$MINUTES * * * *"
+        CRON_LINE="$CRON_EXPR curl -sS $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f ${AUTH_FILE}.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm /tmp/kf_keys)"
+
+        (crontab -l 2>/dev/null | grep -v "KeyForge"; echo "$CRON_LINE") | crontab -
+        echo "Cron job installed: sync every $SYNC_INTERVAL"
+    fi
+fi
+
+echo "Done!"

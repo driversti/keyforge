@@ -1,6 +1,7 @@
 package server
 
 import (
+	_ "embed"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -10,6 +11,9 @@ import (
 	"github.com/driversti/keyforge/internal/db"
 	"github.com/driversti/keyforge/internal/web"
 )
+
+//go:embed scripts/enroll.sh
+var enrollScript []byte
 
 // Server holds the HTTP server dependencies and routes.
 type Server struct {
@@ -67,6 +71,12 @@ func (s *Server) routes() {
 	// Public API routes (no auth).
 	s.mux.HandleFunc("GET /api/v1/authorized_keys", s.apiHandler.GetAuthorizedKeys)
 	s.mux.HandleFunc("GET /api/v1/health", s.apiHandler.HealthCheck)
+
+	// Serve the curl-pipeable enrollment script.
+	s.mux.HandleFunc("GET /enroll.sh", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(enrollScript)
+	})
 
 	// Token web routes (session auth required).
 	s.mux.Handle("GET /tokens", requireSession(http.HandlerFunc(s.webHandler.TokensPage)))
