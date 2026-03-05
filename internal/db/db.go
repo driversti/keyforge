@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -96,6 +97,7 @@ func (d *DB) migrate() error {
 			id TEXT PRIMARY KEY,
 			token TEXT UNIQUE NOT NULL,
 			label TEXT,
+			code TEXT UNIQUE,
 			expires_at DATETIME NOT NULL,
 			used BOOLEAN NOT NULL DEFAULT false,
 			used_by TEXT REFERENCES devices(id),
@@ -121,5 +123,28 @@ func (d *DB) migrate() error {
 		}
 	}
 
+	// Add new columns for quick enrollment URLs.
+	alterColumns := []struct {
+		table, column, definition string
+	}{
+		{"enrollment_tokens", "device_name", "TEXT"},
+		{"enrollment_tokens", "accept_ssh", "BOOLEAN NOT NULL DEFAULT false"},
+		{"enrollment_tokens", "sync_interval", "TEXT"},
+	}
+	for _, col := range alterColumns {
+		if err := d.addColumnIfNotExists(col.table, col.column, col.definition); err != nil {
+			return fmt.Errorf("add column %s.%s: %w", col.table, col.column, err)
+		}
+	}
+
 	return nil
+}
+
+// addColumnIfNotExists adds a column to a table, ignoring "duplicate column" errors.
+func (d *DB) addColumnIfNotExists(table, column, definition string) error {
+	_, err := d.DB.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition))
+	if err != nil && strings.Contains(err.Error(), "duplicate column") {
+		return nil
+	}
+	return err
 }
