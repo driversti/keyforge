@@ -92,6 +92,9 @@ func (s *Server) routes() {
 		s.apiHandler.DeleteToken(w, r, r.PathValue("id"))
 	})))
 
+	// Audit log route (API key auth required).
+	s.mux.Handle("GET /api/v1/audit", requireKey(http.HandlerFunc(s.apiHandler.ListAudit)))
+
 	// Protected routes.
 	s.mux.Handle("GET /api/v1/devices", requireKey(http.HandlerFunc(s.apiHandler.ListDevices)))
 	s.mux.HandleFunc("POST /api/v1/devices", s.apiHandler.CreateDevice) // auth handled inside handler

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -299,6 +300,46 @@ func (h *Handler) DeleteToken(w http.ResponseWriter, r *http.Request, id string)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListAudit returns paginated audit log entries.
+func (h *Handler) ListAudit(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	offset := 0
+
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	entries, err := h.db.ListAudit(limit, offset)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list audit log"})
+		return
+	}
+
+	total, err := h.db.CountAudit()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to count audit entries"})
+		return
+	}
+
+	if entries == nil {
+		entries = []models.AuditEntry{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"entries": entries,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+	})
 }
 
 // writeJSON encodes data as JSON and writes it to the response with the given

@@ -50,3 +50,13 @@ func (d *DB) ListAudit(limit, offset int) ([]models.AuditEntry, error) {
 
 	return entries, nil
 }
+
+// CountAudit returns the total number of audit log entries.
+func (d *DB) CountAudit() (int, error) {
+	var count int
+	err := d.DB.QueryRow(`SELECT COUNT(*) FROM audit_log`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count audit entries: %w", err)
+	}
+	return count, nil
+}
