@@ -53,7 +53,7 @@ a1b2c3d4e5f6...
 KeyForge server listening on :9315
 ```
 
-Open `http://localhost:9315` to access the Web UI (login with the API key).
+Open `https://keyforge.yurii.live` to access the Web UI (login with the API key).
 
 ### 2. Enroll your first device
 
@@ -62,14 +62,14 @@ On the machine you want to enroll:
 ```bash
 # First, create an enrollment token (on any machine with the API key)
 ./keyforge token create --label "for-my-laptop" --expires 1h \
-  --server http://keyforge:9315 --api-key YOUR_API_KEY
+  --server https://keyforge.yurii.live --api-key YOUR_API_KEY
 
 # Output: Token: xyz789...
 
 # Then, on the device to enroll:
 ./keyforge enroll \
   --name "my-laptop" \
-  --server http://keyforge:9315 \
+  --server https://keyforge.yurii.live \
   --token xyz789
 ```
 
@@ -82,7 +82,7 @@ Servers use the same flow but add `--accept-ssh` so they receive all keys:
 ```bash
 ./keyforge enroll \
   --name "web-server" \
-  --server http://keyforge:9315 \
+  --server https://keyforge.yurii.live \
   --token abc123 \
   --accept-ssh
 ```
@@ -91,10 +91,10 @@ Servers use the same flow but add `--accept-ssh` so they receive all keys:
 
 ```bash
 # One-time install
-./keyforge keys --install --server http://keyforge:9315
+./keyforge keys --install --server https://keyforge.yurii.live
 
 # Set up periodic sync (every 15 minutes)
-./keyforge keys --install --cron 15m --server http://keyforge:9315
+./keyforge keys --install --cron 15m --server https://keyforge.yurii.live
 ```
 
 That's it. Your laptop can now SSH into the web server, and any future enrolled device will be able to as well.
@@ -104,10 +104,10 @@ That's it. Your laptop can now SSH into the web server, and any future enrolled 
 Don't have the `keyforge` binary on the new device? Use the built-in enrollment script:
 
 ```bash
-curl -sSL http://keyforge:9315/enroll.sh | sh -s -- \
+curl -sSL https://keyforge.yurii.live/enroll.sh | sh -s -- \
   --name "lxc-nginx" \
   --token abc123 \
-  --server http://keyforge:9315 \
+  --server https://keyforge.yurii.live \
   --accept-ssh \
   --sync-interval 15m
 ```
@@ -123,10 +123,10 @@ When creating a new LXC in Proxmox:
 3. Paste into the Proxmox SSH key field during LXC creation
 4. After the LXC boots, enroll it:
    ```bash
-   curl -sSL http://keyforge:9315/enroll.sh | sh -s -- \
+   curl -sSL https://keyforge.yurii.live/enroll.sh | sh -s -- \
      --name "lxc-$(hostname)" \
      --token TOKEN \
-     --server http://keyforge:9315 \
+     --server https://keyforge.yurii.live \
      --accept-ssh \
      --sync-interval 15m
    ```
@@ -136,7 +136,7 @@ When creating a new LXC in Proxmox:
 ### Server
 
 ```bash
-keyforge serve [--port 9315] [--data ./keyforge-data]
+keyforge serve [--port 9315] [--data ./keyforge-data] [--url https://keyforge.example.com]
 ```
 
 ### Enrollment Tokens
@@ -210,6 +210,8 @@ keyforge push --target root@192.168.1.50 --server URL
 | `GET` | `/api/v1/authorized_keys` | All active public keys as plain text |
 | `GET` | `/api/v1/health` | Health check |
 | `GET` | `/enroll.sh` | Enrollment shell script |
+| `GET` | `/install.sh` | Install shell script |
+| `GET` | `/download` | Download page |
 
 ### Protected Endpoints (API key: `Authorization: Bearer <key>`)
 
@@ -229,7 +231,7 @@ keyforge push --target root@192.168.1.50 --server URL
 The `/api/v1/authorized_keys` endpoint returns plain text — pipe it directly into `authorized_keys`:
 
 ```bash
-curl -s http://keyforge:9315/api/v1/authorized_keys >> ~/.ssh/authorized_keys
+curl -s https://keyforge.yurii.live/api/v1/authorized_keys >> ~/.ssh/authorized_keys
 ```
 
 ## How Keys Are Managed
@@ -262,7 +264,7 @@ Instead of syncing keys via cron, you can configure sshd to query KeyForge on ev
 
 2. Edit `/etc/ssh/sshd_config`:
    ```
-   AuthorizedKeysCommand /usr/local/bin/keyforge keys --server http://keyforge:9315
+   AuthorizedKeysCommand /usr/local/bin/keyforge keys --server https://keyforge.yurii.live
    AuthorizedKeysCommandUser nobody
    ```
 

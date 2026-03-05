@@ -39,6 +39,7 @@ func init() {
 
 	serveCmd.Flags().Int("port", 9315, "Port to listen on")
 	serveCmd.Flags().String("data", "./keyforge-data", "Data directory path")
+	serveCmd.Flags().String("url", "", "Public URL of this server (shown in web UI, e.g. https://keyforge.example.com)")
 
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(newDeviceCmd())
@@ -72,7 +73,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("api key setup: %w", err)
 	}
 
-	srv, err := server.New(database, key, fmt.Sprintf("http://localhost:%d", port))
+	publicURL, _ := cmd.Flags().GetString("url")
+	if publicURL == "" {
+		publicURL = fmt.Sprintf("http://localhost:%d", port)
+	}
+
+	srv, err := server.New(database, key, publicURL)
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
 	}

@@ -1,6 +1,6 @@
 #!/bin/sh
 # KeyForge install script
-# Usage: curl -sSL https://your-keyforge-server/install.sh | sh
+# Usage: curl -sSL https://keyforge.yurii.live/install.sh | sh
 #
 # Options:
 #   --global            Install to /usr/local/bin (requires sudo)

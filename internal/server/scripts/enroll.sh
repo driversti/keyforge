@@ -1,6 +1,6 @@
 #!/bin/sh
 # KeyForge enrollment script
-# Usage: curl -sSL https://keyforge.example.com/enroll.sh | sh -s -- --name "device-name" --token "abc123"
+# Usage: curl -sSL https://keyforge.yurii.live/enroll.sh | sh -s -- --name "device-name" --token "abc123"
 #
 # This script:
 # 1. Generates an SSH key pair (if none exists)
