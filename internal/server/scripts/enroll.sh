@@ -60,7 +60,7 @@ RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "$SERVER_URL/api/v1/devices" \
     -d "{\"name\":\"$NAME\",\"public_key\":\"$PUB_KEY\",\"accepts_ssh\":${ACCEPT_SSH:-false},\"enrollment_token\":\"$TOKEN\"}")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-BODY=$(echo "$RESPONSE" | head -n -1)
+BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" != "201" ]; then
     echo "Registration failed ($HTTP_CODE): $BODY"
@@ -91,27 +91,31 @@ if [ "$ACCEPT_SSH" = "true" ]; then
 
     # Set up cron if requested
     if [ -n "$SYNC_INTERVAL" ]; then
-        # Convert interval to cron expression (POSIX-compatible)
-        UNIT=$(echo "$SYNC_INTERVAL" | sed 's/.*\(.\)$/\1/')
-        VALUE=$(echo "$SYNC_INTERVAL" | sed 's/.$//')
+        if ! command -v crontab >/dev/null 2>&1; then
+            echo "Warning: crontab not available, skipping periodic sync."
+            echo "Install cronie (pkg install cronie) or sync manually."
+        else
+            # Convert interval to cron expression (POSIX-compatible)
+            UNIT=$(echo "$SYNC_INTERVAL" | sed 's/.*\(.\)$/\1/')
+            VALUE=$(echo "$SYNC_INTERVAL" | sed 's/.$//')
 
-        case "$UNIT" in
-            m)
-                CRON_SCHEDULE="*/$VALUE * * * *"
-                ;;
-            h)
-                CRON_SCHEDULE="0 */$VALUE * * *"
-                ;;
-            *)
-                echo "Error: sync interval must end with 'm' (minutes) or 'h' (hours)"
-                exit 1
-                ;;
-        esac
-        CRON_EXPR="$CRON_SCHEDULE"
-        CRON_LINE="$CRON_EXPR curl -sS $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f ${AUTH_FILE}.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm /tmp/kf_keys)"
+            case "$UNIT" in
+                m)
+                    CRON_SCHEDULE="*/$VALUE * * * *"
+                    ;;
+                h)
+                    CRON_SCHEDULE="0 */$VALUE * * *"
+                    ;;
+                *)
+                    echo "Error: sync interval must end with 'm' (minutes) or 'h' (hours)"
+                    exit 1
+                    ;;
+            esac
+            CRON_LINE="$CRON_SCHEDULE curl -sS $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f $AUTH_FILE.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm /tmp/kf_keys)"
 
-        (crontab -l 2>/dev/null | grep -v "KeyForge"; echo "$CRON_LINE") | crontab -
-        echo "Cron job installed: sync every $SYNC_INTERVAL"
+            (crontab -l 2>/dev/null | grep -v "KeyForge"; echo "$CRON_LINE") | crontab -
+            echo "Cron job installed: sync every $SYNC_INTERVAL"
+        fi
     fi
 fi
 
