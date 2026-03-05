@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -71,6 +73,28 @@ func newEnrollCmd() *cobra.Command {
 
 			fmt.Printf("✓ Device %q enrolled successfully\n", name)
 			fmt.Printf("  Fingerprint: %s\n", device["fingerprint"])
+
+			// If --accept-ssh, install authorized_keys.
+			if acceptsSSH {
+				fmt.Println("Fetching and installing authorized keys...")
+				url := strings.TrimRight(serverURL, "/") + "/api/v1/authorized_keys"
+				resp, err := http.Get(url)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: could not fetch keys: %v\n", err)
+				} else {
+					defer resp.Body.Close()
+					body, err := io.ReadAll(resp.Body)
+					if err == nil && resp.StatusCode == http.StatusOK {
+						homeDir, _ := os.UserHomeDir()
+						authKeysPath := filepath.Join(homeDir, ".ssh", "authorized_keys")
+						if err := keys.InstallKeys(string(body), authKeysPath); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: could not install keys: %v\n", err)
+						} else {
+							fmt.Printf("Authorized keys installed to %s\n", authKeysPath)
+						}
+					}
+				}
+			}
 
 			return nil
 		},

@@ -92,8 +92,22 @@ if [ "$ACCEPT_SSH" = "true" ]; then
     # Set up cron if requested
     if [ -n "$SYNC_INTERVAL" ]; then
         # Convert interval to cron expression
-        MINUTES=$(echo "$SYNC_INTERVAL" | sed 's/m$//')
-        CRON_EXPR="*/$MINUTES * * * *"
+        UNIT="${SYNC_INTERVAL: -1}"
+        VALUE="${SYNC_INTERVAL%?}"
+
+        case "$UNIT" in
+            m)
+                CRON_SCHEDULE="*/$VALUE * * * *"
+                ;;
+            h)
+                CRON_SCHEDULE="0 */$VALUE * * *"
+                ;;
+            *)
+                echo "Error: sync interval must end with 'm' (minutes) or 'h' (hours)"
+                exit 1
+                ;;
+        esac
+        CRON_EXPR="$CRON_SCHEDULE"
         CRON_LINE="$CRON_EXPR curl -sS $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f ${AUTH_FILE}.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm /tmp/kf_keys)"
 
         (crontab -l 2>/dev/null | grep -v "KeyForge"; echo "$CRON_LINE") | crontab -
