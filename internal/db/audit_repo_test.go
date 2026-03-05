@@ -97,7 +97,7 @@ func TestListAudit_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAudit: %v", err)
 	}
-	if entries != nil {
-		t.Errorf("expected nil slice from empty table, got %v", entries)
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries from empty table, got %d", len(entries))
 	}
 }

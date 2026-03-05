@@ -432,3 +432,109 @@ func TestIntegration_EnrollmentFlow(t *testing.T) {
 		}
 	})
 }
+
+func TestIntegration_AuditLogAPI(t *testing.T) {
+	const auditKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbda9fDvF5RsoqRdX4EqZREGdC0qaS4LGb+rGuyQeEN audit@test"
+
+	// 1. Create in-memory DB and server.
+	database, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("creating database: %v", err)
+	}
+	defer database.Close()
+
+	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	if err != nil {
+		t.Fatalf("creating server: %v", err)
+	}
+
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	client := ts.Client()
+
+	// 2. Create a device to generate an audit entry.
+	t.Run("create device for audit", func(t *testing.T) {
+		body := `{"name":"audit-device","public_key":"` + auditKey + `","accepts_ssh":false,"tags":["audit-test"]}`
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(b))
+		}
+	})
+
+	// 3. GET /api/v1/audit with auth — verify entries exist.
+	t.Run("list audit entries", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/audit", "", true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		var result struct {
+			Entries []map[string]any `json:"entries"`
+			Total   int              `json:"total"`
+			Limit   int              `json:"limit"`
+			Offset  int              `json:"offset"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+
+		if len(result.Entries) < 1 {
+			t.Fatal("expected at least 1 audit entry")
+		}
+		if result.Total < 1 {
+			t.Fatalf("expected total >= 1, got %d", result.Total)
+		}
+		if result.Limit != 50 {
+			t.Fatalf("expected default limit 50, got %d", result.Limit)
+		}
+		if result.Offset != 0 {
+			t.Fatalf("expected default offset 0, got %d", result.Offset)
+		}
+	})
+
+	// 4. Pagination: ?limit=1 returns exactly 1 entry.
+	t.Run("audit pagination limit", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/audit?limit=1&offset=0", "", true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		var result struct {
+			Entries []map[string]any `json:"entries"`
+			Total   int              `json:"total"`
+			Limit   int              `json:"limit"`
+			Offset  int              `json:"offset"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+
+		if len(result.Entries) != 1 {
+			t.Fatalf("expected exactly 1 entry with limit=1, got %d", len(result.Entries))
+		}
+		if result.Limit != 1 {
+			t.Fatalf("expected limit 1, got %d", result.Limit)
+		}
+		if result.Offset != 0 {
+			t.Fatalf("expected offset 0, got %d", result.Offset)
+		}
+	})
+
+	// 5. Unauthorized access — GET /api/v1/audit without auth → 401.
+	t.Run("audit unauthorized", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/audit", "", false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", resp.StatusCode)
+		}
+	})
+}
