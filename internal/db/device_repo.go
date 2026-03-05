@@ -98,6 +98,33 @@ func (d *DB) ListDevices() ([]models.Device, error) {
 	return scanDeviceRows(rows)
 }
 
+// SearchDevices returns devices matching the search query and optional status filter.
+func (d *DB) SearchDevices(query string, status string) ([]models.Device, error) {
+	var args []any
+	q := `SELECT id, name, public_key, fingerprint, accepts_ssh, tags, status, registered_at, last_seen
+	      FROM devices WHERE 1=1`
+
+	if query != "" {
+		q += ` AND (name LIKE ? OR fingerprint LIKE ? OR tags LIKE ?)`
+		like := "%" + query + "%"
+		args = append(args, like, like, like)
+	}
+
+	if status != "" {
+		q += ` AND status = ?`
+		args = append(args, status)
+	}
+
+	q += ` ORDER BY registered_at DESC`
+
+	rows, err := d.DB.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("search devices: %w", err)
+	}
+	defer rows.Close()
+	return scanDeviceRows(rows)
+}
+
 // UpdateDevice updates the specified fields of a device.
 func (d *DB) UpdateDevice(id string, req models.UpdateDeviceRequest) error {
 	var setClauses []string

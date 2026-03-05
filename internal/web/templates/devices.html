@@ -10,6 +10,19 @@
 <div class="flash">{{.Flash}}</div>
 {{end}}
 
+<form method="GET" action="/devices" class="filter-bar">
+    <input type="text" name="q" value="{{.Query}}" placeholder="Search by name, fingerprint, or tag..." class="filter-input">
+    <select name="status" class="filter-select">
+        <option value="">All Statuses</option>
+        <option value="active" {{if eq .StatusFilter "active"}}selected{{end}}>Active</option>
+        <option value="revoked" {{if eq .StatusFilter "revoked"}}selected{{end}}>Revoked</option>
+    </select>
+    <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+    {{if or .Query .StatusFilter}}
+    <a href="/devices" class="btn btn-sm" style="color:var(--text-muted)">Clear</a>
+    {{end}}
+</form>
+
 <table>
     <thead>
         <tr>

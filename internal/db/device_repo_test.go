@@ -11,6 +11,7 @@ import (
 const (
 	testKey1 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFXQEx7dJI2DHGuq5nQzd0yozL4XHRRSdlaokZYy0ipS test@host"
 	testKey2 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICKyQHFUMsbDtH66sAAI35pIsLxLCfCUc29crMc0/KHn test2@host"
+	testKey3 = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOcfZQ4Suj5TMETCp7FACYFuO/6RiPj3wP6Wjm3Uwokf test3@host"
 )
 
 // newTestDB creates an in-memory SQLite database for testing.
@@ -274,5 +275,104 @@ func TestUpdateDevice(t *testing.T) {
 	}
 	if len(got.Tags) != 2 || got.Tags[0] != "prod" || got.Tags[1] != "server" {
 		t.Errorf("expected tags [prod server], got %v", got.Tags)
+	}
+}
+
+func TestSearchDevices_ByName(t *testing.T) {
+	db := newTestDB(t)
+
+	names := []string{"alpha-laptop", "beta-server", "gamma-laptop"}
+	keys := []string{testKey1, testKey2, testKey3}
+	for i, name := range names {
+		_, err := db.CreateDevice(models.CreateDeviceRequest{
+			Name:      name,
+			PublicKey: keys[i],
+		})
+		if err != nil {
+			t.Fatalf("CreateDevice(%s): %v", name, err)
+		}
+	}
+
+	devices, err := db.SearchDevices("laptop", "")
+	if err != nil {
+		t.Fatalf("SearchDevices: %v", err)
+	}
+	if len(devices) != 2 {
+		t.Fatalf("expected 2 devices matching 'laptop', got %d", len(devices))
+	}
+
+	for _, d := range devices {
+		if !strings.Contains(d.Name, "laptop") {
+			t.Errorf("expected name containing 'laptop', got %q", d.Name)
+		}
+	}
+}
+
+func TestSearchDevices_ByStatus(t *testing.T) {
+	db := newTestDB(t)
+
+	d1, err := db.CreateDevice(models.CreateDeviceRequest{
+		Name:      "device-a",
+		PublicKey: testKey1,
+	})
+	if err != nil {
+		t.Fatalf("CreateDevice(device-a): %v", err)
+	}
+
+	_, err = db.CreateDevice(models.CreateDeviceRequest{
+		Name:      "device-b",
+		PublicKey: testKey2,
+	})
+	if err != nil {
+		t.Fatalf("CreateDevice(device-b): %v", err)
+	}
+
+	if err := db.RevokeDevice(d1.ID); err != nil {
+		t.Fatalf("RevokeDevice: %v", err)
+	}
+
+	active, err := db.SearchDevices("", "active")
+	if err != nil {
+		t.Fatalf("SearchDevices(active): %v", err)
+	}
+	if len(active) != 1 {
+		t.Fatalf("expected 1 active device, got %d", len(active))
+	}
+	if active[0].Name != "device-b" {
+		t.Errorf("expected 'device-b', got %q", active[0].Name)
+	}
+
+	revoked, err := db.SearchDevices("", "revoked")
+	if err != nil {
+		t.Fatalf("SearchDevices(revoked): %v", err)
+	}
+	if len(revoked) != 1 {
+		t.Fatalf("expected 1 revoked device, got %d", len(revoked))
+	}
+	if revoked[0].Name != "device-a" {
+		t.Errorf("expected 'device-a', got %q", revoked[0].Name)
+	}
+}
+
+func TestSearchDevices_NoFilter(t *testing.T) {
+	db := newTestDB(t)
+
+	keys := []string{testKey1, testKey2}
+	for i, name := range []string{"device-x", "device-y"} {
+		_, err := db.CreateDevice(models.CreateDeviceRequest{
+			Name:      name,
+			PublicKey: keys[i],
+		})
+		if err != nil {
+			t.Fatalf("CreateDevice(%s): %v", name, err)
+		}
+	}
+
+	devices, err := db.SearchDevices("", "")
+	if err != nil {
+		t.Fatalf("SearchDevices: %v", err)
+	}
+	if len(devices) != 2 {
+		t.Errorf("expected 2 devices with no filter, got %d", len(devices))
 	}
 }

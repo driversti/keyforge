@@ -190,9 +190,20 @@ func (h *Handler) DashboardPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DevicesPage lists all devices.
+// DevicesPage lists all devices with optional search and status filter.
 func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
-	devices, err := h.db.ListDevices()
+	query := r.URL.Query().Get("q")
+	statusFilter := r.URL.Query().Get("status")
+
+	var devices []models.Device
+	var err error
+
+	if query != "" || statusFilter != "" {
+		devices, err = h.db.SearchDevices(query, statusFilter)
+	} else {
+		devices, err = h.db.ListDevices()
+	}
+
 	if err != nil {
 		http.Error(w, "failed to list devices", http.StatusInternalServerError)
 		return
@@ -201,8 +212,10 @@ func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
 	flash := r.URL.Query().Get("flash")
 
 	h.renderPage(w, "devices.html", map[string]any{
-		"Devices": devices,
-		"Flash":   flash,
+		"Devices":      devices,
+		"Flash":        flash,
+		"Query":        query,
+		"StatusFilter": statusFilter,
 	})
 }
 
