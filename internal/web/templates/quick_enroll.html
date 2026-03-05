@@ -1,0 +1,26 @@
+{{define "title"}}Quick Enroll: {{.Token.DeviceName}}{{end}}
+
+{{define "content"}}
+<div class="top-bar">
+    <h1>Quick Enroll</h1>
+</div>
+
+<div class="card">
+    <h2>Enroll "{{.Token.DeviceName}}"</h2>
+    <p>Run this command on the device to enroll it:</p>
+
+    <div class="token-reveal">
+        <code id="enroll-cmd">{{.CurlCmd}}</code>
+        <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('enroll-cmd').textContent)">Copy</button>
+    </div>
+
+    <table class="detail-table" style="margin-top: 1.5rem;">
+        <tr><td><strong>Device name</strong></td><td>{{.Token.DeviceName}}</td></tr>
+        <tr><td><strong>Accepts SSH</strong></td><td>{{if .Token.AcceptSSH}}Yes{{else}}No{{end}}</td></tr>
+        {{if .Token.SyncInterval}}
+        <tr><td><strong>Sync interval</strong></td><td>{{.Token.SyncInterval}}</td></tr>
+        {{end}}
+        <tr><td><strong>Expires</strong></td><td>{{formatDate .Token.ExpiresAt}}</td></tr>
+    </table>
+</div>
+{{end}}

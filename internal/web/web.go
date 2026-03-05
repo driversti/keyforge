@@ -95,20 +95,22 @@ func SessionAuth(apiKey string, sessions *SessionStore) func(http.Handler) http.
 
 // Handler serves the web UI pages.
 type Handler struct {
-	db        *db.DB
-	funcMap   template.FuncMap
-	serverURL string
-	apiKey    string
-	sessions  *SessionStore
+	db              *db.DB
+	funcMap         template.FuncMap
+	serverURL       string
+	apiKey          string
+	sessions        *SessionStore
+	enrollScriptBody string
 }
 
 // NewHandler creates a new web UI handler.
-func NewHandler(database *db.DB, serverURL string, apiKey string, sessions *SessionStore) *Handler {
+func NewHandler(database *db.DB, serverURL string, apiKey string, sessions *SessionStore, enrollScriptBody string) *Handler {
 	return &Handler{
-		db:        database,
-		serverURL: serverURL,
-		apiKey:    apiKey,
-		sessions:  sessions,
+		db:               database,
+		serverURL:        serverURL,
+		apiKey:           apiKey,
+		sessions:         sessions,
+		enrollScriptBody: enrollScriptBody,
 		funcMap: template.FuncMap{
 			"truncate": func(s string, n int) string {
 				if len(s) <= n {
@@ -440,12 +442,14 @@ func (h *Handler) TokensPage(w http.ResponseWriter, r *http.Request) {
 
 	flash := r.URL.Query().Get("flash")
 	createdToken := r.URL.Query().Get("created_token")
+	createdEnrollCmd := r.URL.Query().Get("created_enroll_cmd")
 
 	h.renderPage(w, "tokens.html", map[string]any{
-		"Tokens":       tokens,
-		"Flash":        flash,
-		"CreatedToken": createdToken,
-		"Now":          time.Now().UTC(),
+		"Tokens":          tokens,
+		"Flash":           flash,
+		"CreatedToken":    createdToken,
+		"CreatedEnrollCmd": createdEnrollCmd,
+		"Now":             time.Now().UTC(),
 	})
 }
 
@@ -602,6 +606,95 @@ func (h *Handler) LoginSubmit(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// QuickEnrollPage serves either a customized enrollment script (for curl)
+// or an info page (for browsers) based on the Accept header.
+func (h *Handler) QuickEnrollPage(w http.ResponseWriter, r *http.Request, code string) {
+	token, err := h.db.GetTokenByCode(code)
+	if err != nil {
+		http.Error(w, "Enrollment link not found.", http.StatusNotFound)
+		return
+	}
+	if token.Used {
+		http.Error(w, "This enrollment link has already been used.", http.StatusGone)
+		return
+	}
+	if time.Now().UTC().After(token.ExpiresAt) {
+		http.Error(w, "This enrollment link has expired.", http.StatusGone)
+		return
+	}
+
+	// Content negotiation: browsers get HTML, curl/wget get the script.
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "text/html") {
+		h.renderQuickEnrollPage(w, token)
+		return
+	}
+	h.renderQuickEnrollScript(w, token)
+}
+
+// renderQuickEnrollScript writes a shell script with baked-in variables followed
+// by the shared enrollment body.
+func (h *Handler) renderQuickEnrollScript(w http.ResponseWriter, token *models.EnrollmentToken) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	acceptSSH := "false"
+	if token.AcceptSSH {
+		acceptSSH = "true"
+	}
+
+	fmt.Fprintf(w, "#!/bin/sh\nset -e\n\n")
+	fmt.Fprintf(w, "NAME=%q\n", token.DeviceName)
+	fmt.Fprintf(w, "TOKEN=%q\n", token.Token)
+	fmt.Fprintf(w, "SERVER_URL=%q\n", h.serverURL)
+	fmt.Fprintf(w, "ACCEPT_SSH=%q\n", acceptSSH)
+	fmt.Fprintf(w, "SYNC_INTERVAL=%q\n", token.SyncInterval)
+	fmt.Fprintf(w, "KEY_PATH=\"$HOME/.ssh/id_ed25519\"\n\n")
+	fmt.Fprint(w, h.enrollScriptBody)
+}
+
+// renderQuickEnrollPage renders the browser-friendly quick enroll info page.
+func (h *Handler) renderQuickEnrollPage(w http.ResponseWriter, token *models.EnrollmentToken) {
+	curlCmd := fmt.Sprintf("curl -sSL %s/e/%s | sh", h.serverURL, token.Code)
+	h.renderPage(w, "quick_enroll.html", map[string]any{
+		"Token":   token,
+		"CurlCmd": curlCmd,
+	})
+}
+
+// CreateQuickEnrollSubmit handles the quick enroll form submission.
+func (h *Handler) CreateQuickEnrollSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	deviceName := strings.TrimSpace(r.FormValue("device_name"))
+	acceptSSH := r.FormValue("accept_ssh") == "true"
+	syncInterval := strings.TrimSpace(r.FormValue("sync_interval"))
+	expiresIn := strings.TrimSpace(r.FormValue("expires_in"))
+
+	if deviceName == "" || expiresIn == "" {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Device name and expiry are required."), http.StatusSeeOther)
+		return
+	}
+
+	duration, err := time.ParseDuration(expiresIn)
+	if err != nil {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Invalid expiry duration."), http.StatusSeeOther)
+		return
+	}
+
+	expiresAt := time.Now().Add(duration)
+	token, err := h.db.CreateQuickEnroll(deviceName, acceptSSH, syncInterval, expiresAt)
+	if err != nil {
+		http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Failed to create enrollment link."), http.StatusSeeOther)
+		return
+	}
+
+	enrollCmd := fmt.Sprintf("curl -sSL %s/e/%s | sh", h.serverURL, token.Code)
+	http.Redirect(w, r, "/tokens?flash="+url.QueryEscape("Enrollment link created!")+"&created_enroll_cmd="+url.QueryEscape(enrollCmd), http.StatusSeeOther)
 }
 
 // LogoutHandler clears the session and redirects to login.

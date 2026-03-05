@@ -55,7 +55,21 @@ KeyForge server listening on :9315
 
 Open `https://keyforge.yurii.live` to access the Web UI (login with the API key).
 
-### 2. Enroll your first device
+### 2. Quick Enroll (Recommended)
+
+The easiest way to enroll a device:
+
+1. Open the Web UI → **Tokens** → **Quick Enroll**
+2. Fill in: device name, toggle "Accepts SSH", set sync interval, set expiry
+3. Click **Generate Enrollment Link**
+4. Copy the one-liner and run it on the target device:
+   ```bash
+   curl -sSL https://keyforge.yurii.live/e/48291037 | sh
+   ```
+
+That's it — the device generates an SSH key, registers with KeyForge, and sets up cron sync if configured.
+
+### 3. Enroll your first device (CLI)
 
 On the machine you want to enroll:
 
@@ -75,7 +89,7 @@ On the machine you want to enroll:
 
 This generates an SSH key (if needed) and registers the public key with KeyForge.
 
-### 3. Enroll a server
+### 4. Enroll a server
 
 Servers use the same flow but add `--accept-ssh` so they receive all keys:
 
@@ -87,7 +101,7 @@ Servers use the same flow but add `--accept-ssh` so they receive all keys:
   --accept-ssh
 ```
 
-### 4. Install keys on the server
+### 5. Install keys on the server
 
 ```bash
 # One-time install
@@ -100,6 +114,8 @@ Servers use the same flow but add `--accept-ssh` so they receive all keys:
 That's it. Your laptop can now SSH into the web server, and any future enrolled device will be able to as well.
 
 ## Enrolling Without the Binary
+
+> **Tip:** [Quick Enroll](#2-quick-enroll-recommended) generates this command for you — no need to assemble flags manually.
 
 Don't have the `keyforge` binary on the new device? Use the built-in enrollment script:
 

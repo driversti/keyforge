@@ -542,6 +542,102 @@ func TestIntegration_AuditLogAPI(t *testing.T) {
 	})
 }
 
+func TestIntegration_QuickEnrollFlow(t *testing.T) {
+	const serverURL = "http://localhost:9315"
+
+	// 1. Create in-memory DB and server.
+	database, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("creating database: %v", err)
+	}
+	defer database.Close()
+
+	srv, err := server.New(database, testAPIKey, serverURL)
+	if err != nil {
+		t.Fatalf("creating server: %v", err)
+	}
+
+	// 2. Create a quick enroll token directly via the DB.
+	expiresAt := time.Now().Add(1 * time.Hour)
+	token, err := database.CreateQuickEnroll("my-laptop", true, "5m", expiresAt)
+	if err != nil {
+		t.Fatalf("creating quick enroll token: %v", err)
+	}
+
+	// 3. GET /e/{code} with Accept: text/html → HTML response.
+	t.Run("browser gets HTML page", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/e/"+token.Code, nil)
+		req.Header.Set("Accept", "text/html")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		body := rec.Body.String()
+		if !strings.Contains(body, token.DeviceName) {
+			t.Fatalf("expected HTML to contain device name %q", token.DeviceName)
+		}
+		expectedCurl := fmt.Sprintf("curl -sSL %s/e/%s | sh", serverURL, token.Code)
+		if !strings.Contains(body, expectedCurl) {
+			t.Fatalf("expected HTML to contain curl command %q", expectedCurl)
+		}
+	})
+
+	// 4. GET /e/{code} without Accept header → shell script.
+	t.Run("curl gets shell script", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/e/"+token.Code, nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		body := rec.Body.String()
+		if !strings.Contains(body, fmt.Sprintf("NAME=%q", token.DeviceName)) {
+			t.Fatal("expected script to contain NAME variable")
+		}
+		if !strings.Contains(body, fmt.Sprintf("TOKEN=%q", token.Token)) {
+			t.Fatal("expected script to contain TOKEN variable")
+		}
+		if !strings.Contains(body, fmt.Sprintf("SERVER_URL=%q", serverURL)) {
+			t.Fatal("expected script to contain SERVER_URL variable")
+		}
+		if !strings.Contains(body, `ACCEPT_SSH="true"`) {
+			t.Fatal("expected script to contain ACCEPT_SSH=\"true\"")
+		}
+	})
+
+	// 5. GET /e/99999999 → 404 not found.
+	t.Run("unknown code returns 404", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/e/99999999", nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rec.Code)
+		}
+	})
+
+	// 6. Burn the token, then GET /e/{code} → 410 Gone.
+	t.Run("burned token returns 410", func(t *testing.T) {
+		_, err := database.ValidateAndBurnToken(token.Token)
+		if err != nil {
+			t.Fatalf("burning token: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", "/e/"+token.Code, nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusGone {
+			t.Fatalf("expected 410, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
 func TestIntegration_KeysCacheFallback(t *testing.T) {
 	const cacheTestKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbda9fDvF5RsoqRdX4EqZREGdC0qaS4LGb+rGuyQeEN cache@test"
 
