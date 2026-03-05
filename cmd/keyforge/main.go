@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/bcrypt"
 
 	"driversti.dev/keyforge/internal/auth"
 	"driversti.dev/keyforge/internal/db"
@@ -76,6 +77,20 @@ func runServe(cmd *cobra.Command, args []string) error {
 	publicURL, _ := cmd.Flags().GetString("url")
 	if publicURL == "" {
 		publicURL = fmt.Sprintf("http://localhost:%d", port)
+	}
+
+	// Set web password from env var if provided and no password is set yet.
+	if envPass := os.Getenv("KEYFORGE_PASSWORD"); envPass != "" {
+		if _, err := database.GetSetting("web_password"); err != nil {
+			hash, err := bcrypt.GenerateFromPassword([]byte(envPass), bcrypt.DefaultCost)
+			if err != nil {
+				return fmt.Errorf("hash password: %w", err)
+			}
+			if err := database.SetSetting("web_password", string(hash)); err != nil {
+				return fmt.Errorf("store password: %w", err)
+			}
+			fmt.Println("Web password set from KEYFORGE_PASSWORD environment variable.")
+		}
 	}
 
 	srv, err := server.New(database, key, publicURL)

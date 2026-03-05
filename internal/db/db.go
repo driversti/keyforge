@@ -67,6 +67,15 @@ func (d *DB) GetSetting(key string) (string, error) {
 	return value, nil
 }
 
+// DeleteSetting removes a setting by key from the settings table.
+func (d *DB) DeleteSetting(key string) error {
+	_, err := d.DB.Exec("DELETE FROM settings WHERE key = ?", key)
+	if err != nil {
+		return fmt.Errorf("delete setting %q: %w", key, err)
+	}
+	return nil
+}
+
 // SetSetting inserts or replaces a setting value in the settings table.
 func (d *DB) SetSetting(key, value string) error {
 	_, err := d.DB.Exec(
