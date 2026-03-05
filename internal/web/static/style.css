@@ -302,6 +302,34 @@ tr:hover td {
     color: var(--danger);
 }
 
+.flash.flash-success {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.flash.flash-success code {
+    display: block;
+    background: var(--bg);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    word-break: break-all;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.token-reveal {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.token-reveal code {
+    flex: 1;
+}
+
 /* Fingerprint */
 .fingerprint {
     font-family: monospace;
@@ -489,6 +517,25 @@ tr:hover td {
 
 .download-card .btn {
     align-self: flex-start;
+}
+
+/* Inline form (horizontal layout) */
+.inline-form {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.inline-form .form-group {
+    margin-bottom: 0;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
 }
 
 /* Login page */

@@ -10,25 +10,25 @@
 {{end}}
 
 {{if .CreatedToken}}
-<div class="flash" style="background: #d4edda; border-color: #c3e6cb; color: #155724; padding: 1rem; margin-bottom: 1rem;">
+<div class="flash flash-success">
     <strong>New token created! Copy it now — you won't see it again:</strong>
-    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-        <code id="created-token" style="background: #fff; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; word-break: break-all; flex: 1;">{{.CreatedToken}}</code>
+    <div class="token-reveal">
+        <code id="created-token">{{.CreatedToken}}</code>
         <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('created-token').textContent)">Copy</button>
     </div>
 </div>
 {{end}}
 
-<div style="background: var(--card-bg, #fff); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border, #ddd); margin-bottom: 2rem;">
-    <h2 style="margin-top: 0;">Create Token</h2>
-    <form method="POST" action="/tokens" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div>
-            <label for="label" style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">Label</label>
-            <input type="text" id="label" name="label" placeholder="e.g. laptop-enrollment" style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+<div class="card">
+    <h2>Create Token</h2>
+    <form method="POST" action="/tokens" class="inline-form">
+        <div class="form-group">
+            <label for="label">Label</label>
+            <input type="text" id="label" name="label" placeholder="e.g. laptop-enrollment">
         </div>
-        <div>
-            <label for="expires_in" style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">Expires In</label>
-            <select id="expires_in" name="expires_in" style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+        <div class="form-group">
+            <label for="expires_in">Expires In</label>
+            <select id="expires_in" name="expires_in" class="filter-select">
                 <option value="1h">1 hour</option>
                 <option value="6h">6 hours</option>
                 <option value="24h" selected>24 hours</option>
@@ -56,8 +56,8 @@
         <tr>
             <td>{{if .Label}}{{.Label}}{{else}}<em>—</em>{{end}}</td>
             <td>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <code style="font-size: 0.75rem; word-break: break-all;">{{truncate .Token 20}}</code>
+                <div class="actions">
+                    <code class="fingerprint">{{truncate .Token 20}}</code>
                     <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('{{.Token}}')">Copy</button>
                 </div>
             </td>
@@ -81,7 +81,7 @@
         {{end}}
         {{else}}
         <tr>
-            <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No enrollment tokens yet.</td>
+            <td colspan="6" class="empty-state">No enrollment tokens yet.</td>
         </tr>
         {{end}}
     </tbody>
