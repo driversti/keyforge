@@ -108,8 +108,10 @@ func (s *Server) routes() {
 	// Audit log web route (session auth required).
 	s.mux.Handle("GET /audit", requireSession(http.HandlerFunc(s.webHandler.AuditPage)))
 
-	// Settings web route (session auth required).
+	// Settings web routes (session auth required).
 	s.mux.Handle("GET /settings", requireSession(http.HandlerFunc(s.webHandler.SettingsPage)))
+	s.mux.Handle("POST /settings/password", requireSession(http.HandlerFunc(s.webHandler.SetPasswordSubmit)))
+	s.mux.Handle("POST /settings/password/remove", requireSession(http.HandlerFunc(s.webHandler.RemovePasswordSubmit)))
 
 	// Token API routes (API key auth required).
 	s.mux.Handle("POST /api/v1/tokens", requireKey(http.HandlerFunc(s.apiHandler.CreateToken)))

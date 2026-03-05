@@ -4,6 +4,46 @@
     <h1>Settings</h1>
 </div>
 
+{{if .Flash}}
+<div class="flash">{{.Flash}}</div>
+{{end}}
+
+<div class="card">
+    <h2>Web Password</h2>
+    <p style="color:var(--text-muted);margin-bottom:1rem">Set a short password for web UI login. You can always use the API key too.</p>
+    {{if .HasPassword}}
+    <p><span class="badge active">Password set</span></p>
+    <form method="POST" action="/settings/password" style="margin-top:1rem">
+        <div class="form-group">
+            <label for="password">New Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter new password">
+        </div>
+        <div class="form-group">
+            <label for="confirm">Confirm Password</label>
+            <input type="password" id="confirm" name="confirm" placeholder="Confirm new password">
+        </div>
+        <div style="display:flex;gap:0.5rem">
+            <button type="submit" class="btn btn-primary btn-sm">Change Password</button>
+        </div>
+    </form>
+    <form method="POST" action="/settings/password/remove" style="margin-top:0.75rem" onsubmit="return confirm('Remove password? You will need the API key to log in.')">
+        <button type="submit" class="btn btn-danger btn-sm">Remove Password</button>
+    </form>
+    {{else}}
+    <form method="POST" action="/settings/password">
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Choose a password" required>
+        </div>
+        <div class="form-group">
+            <label for="confirm">Confirm Password</label>
+            <input type="password" id="confirm" name="confirm" placeholder="Confirm password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Set Password</button>
+    </form>
+    {{end}}
+</div>
+
 <div class="card">
     <h2>API Key</h2>
     <p style="color:var(--text-muted);margin-bottom:1rem">Use this key for CLI commands and API access. Keep it secret.</p>

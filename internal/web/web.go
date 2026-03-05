@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"driversti.dev/keyforge/internal/db"
 	"driversti.dev/keyforge/internal/models"
 )
@@ -546,6 +548,9 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 
 	masked := h.apiKey[:8] + strings.Repeat("*", len(h.apiKey)-8)
 
+	_, hasPassword := h.db.GetSetting("web_password")
+	flash := r.URL.Query().Get("flash")
+
 	h.renderPage(w, "settings.html", map[string]any{
 		"APIKey":        h.apiKey,
 		"MaskedAPIKey":  masked,
@@ -555,7 +560,51 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 		"SSHAccepting":  sshAccepting,
 		"TotalTokens":   len(tokens),
 		"AuditCount":    auditCount,
+		"HasPassword":   hasPassword == nil,
+		"Flash":         flash,
 	})
+}
+
+// SetPasswordSubmit handles the set/change password form submission.
+func (h *Handler) SetPasswordSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	password := r.FormValue("password")
+	confirm := r.FormValue("confirm")
+
+	if password == "" {
+		http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Password cannot be empty."), http.StatusSeeOther)
+		return
+	}
+	if password != confirm {
+		http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Passwords do not match."), http.StatusSeeOther)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Failed to set password."), http.StatusSeeOther)
+		return
+	}
+
+	if err := h.db.SetSetting("web_password", string(hash)); err != nil {
+		http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Failed to save password."), http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Password set successfully."), http.StatusSeeOther)
+}
+
+// RemovePasswordSubmit removes the web password.
+func (h *Handler) RemovePasswordSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := h.db.DeleteSetting("web_password"); err != nil {
+		http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Failed to remove password."), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/settings?flash="+url.QueryEscape("Password removed. Use API key to log in."), http.StatusSeeOther)
 }
 
 // LoginPage renders the login form.
@@ -574,15 +623,29 @@ func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // LoginSubmit handles the login form submission.
+// Accepts either the API key or a web password.
 func (h *Handler) LoginSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	key := strings.TrimSpace(r.FormValue("api_key"))
-	if subtle.ConstantTimeCompare([]byte(key), []byte(h.apiKey)) != 1 {
-		http.Redirect(w, r, "/login?error="+url.QueryEscape("Invalid API key."), http.StatusSeeOther)
+	input := strings.TrimSpace(r.FormValue("api_key"))
+
+	// Try API key first.
+	authenticated := subtle.ConstantTimeCompare([]byte(input), []byte(h.apiKey)) == 1
+
+	// Try web password if API key didn't match.
+	if !authenticated {
+		if hash, err := h.db.GetSetting("web_password"); err == nil && hash != "" {
+			if bcrypt.CompareHashAndPassword([]byte(hash), []byte(input)) == nil {
+				authenticated = true
+			}
+		}
+	}
+
+	if !authenticated {
+		http.Redirect(w, r, "/login?error="+url.QueryEscape("Invalid credentials."), http.StatusSeeOther)
 		return
 	}
 
