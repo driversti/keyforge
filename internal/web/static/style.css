@@ -427,6 +427,69 @@ tr:hover td {
     border-color: var(--primary);
 }
 
+/* Install command */
+.install-cmd {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+.install-cmd code {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+    color: var(--success);
+}
+
+.install-cmd .copy-btn {
+    flex-shrink: 0;
+}
+
+/* Download grid */
+.download-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.download-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.download-os {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.download-arch {
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.download-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.download-card .btn {
+    align-self: flex-start;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     nav .container {
@@ -481,6 +544,14 @@ tr:hover td {
     .pagination {
         flex-wrap: wrap;
     }
+
+    .download-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .install-cmd {
+        flex-direction: column;
+    }
 }
 
 @media (max-width: 480px) {
@@ -503,5 +574,9 @@ tr:hover td {
 
     h1 {
         font-size: 1.25rem;
+    }
+
+    .download-grid {
+        grid-template-columns: 1fr;
     }
 }

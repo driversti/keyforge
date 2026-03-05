@@ -13,6 +13,8 @@ import (
 	"driversti.dev/keyforge/internal/server"
 )
 
+var version = "dev"
+
 var (
 	serverURL string
 	apiKey    string
@@ -31,6 +33,7 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.Version = version
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:9315", "KeyForge server URL")
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "API key for authentication")
 

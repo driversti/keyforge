@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binaries
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          LDFLAGS="-X main.version=${VERSION}"
+
+          GOOS=linux   GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/keyforge-linux-amd64   ./cmd/keyforge
+          GOOS=linux   GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/keyforge-linux-arm64   ./cmd/keyforge
+          GOOS=linux   GOARCH=arm   go build -ldflags "$LDFLAGS" -o bin/keyforge-linux-arm     ./cmd/keyforge
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/keyforge-darwin-amd64  ./cmd/keyforge
+          GOOS=darwin  GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/keyforge-darwin-arm64  ./cmd/keyforge
+          GOOS=android GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/keyforge-android-arm64 ./cmd/keyforge
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            bin/keyforge-linux-amd64
+            bin/keyforge-linux-arm64
+            bin/keyforge-linux-arm
+            bin/keyforge-darwin-amd64
+            bin/keyforge-darwin-arm64
+            bin/keyforge-android-arm64
+            internal/server/scripts/install.sh

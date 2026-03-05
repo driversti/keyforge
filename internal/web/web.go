@@ -310,6 +310,13 @@ func (h *Handler) AuthorizedKeysPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DownloadPage renders the public download/install page.
+func (h *Handler) DownloadPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPage(w, "download.html", map[string]any{
+		"ServerURL": h.serverURL,
+	})
+}
+
 // RevokeDeviceAction revokes a device and redirects to the device list.
 func (h *Handler) RevokeDeviceAction(w http.ResponseWriter, r *http.Request, id string) {
 	if err := h.db.RevokeDevice(id); err != nil {

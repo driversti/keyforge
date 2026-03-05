@@ -1,0 +1,83 @@
+{{define "title"}}Download{{end}}
+
+{{define "content"}}
+<div class="top-bar">
+    <h1>Install KeyForge</h1>
+</div>
+
+<div class="card">
+    <h2>Quick Install</h2>
+    <p class="stat-label" style="margin-bottom:0.75rem;">Run this command to install keyforge on any supported platform:</p>
+    <div class="install-cmd">
+        <code id="install-cmd">curl -sSL {{.ServerURL}}/install.sh | sh</code>
+        <button class="copy-btn" onclick="copyText('install-cmd')">Copy</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Install + Enroll</h2>
+    <p class="stat-label" style="margin-bottom:0.75rem;">Install the binary and enroll this device in one step:</p>
+    <div class="install-cmd">
+        <code id="enroll-cmd">curl -sSL {{.ServerURL}}/install.sh | sh -s -- \
+  --name "my-device" \
+  --token YOUR_TOKEN \
+  --server {{.ServerURL}} \
+  --accept-ssh</code>
+        <button class="copy-btn" onclick="copyText('enroll-cmd')">Copy</button>
+    </div>
+</div>
+
+<h2 style="margin-bottom:1rem;">Download Binaries</h2>
+<p class="stat-label" style="margin-bottom:1rem;">Or download the binary directly from GitHub Releases:</p>
+
+<div class="download-grid">
+    <div class="download-card">
+        <div class="download-os">Linux</div>
+        <div class="download-arch">x86_64 (amd64)</div>
+        <div class="download-desc">Debian, Ubuntu, servers, VMs</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-linux-amd64" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    <div class="download-card">
+        <div class="download-os">Linux</div>
+        <div class="download-arch">ARM64 (aarch64)</div>
+        <div class="download-desc">ARM servers, LXC on ARM</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-linux-arm64" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    <div class="download-card">
+        <div class="download-os">Linux</div>
+        <div class="download-arch">ARM (v7, 32-bit)</div>
+        <div class="download-desc">Raspberry Pi</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-linux-arm" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    <div class="download-card">
+        <div class="download-os">macOS</div>
+        <div class="download-arch">Intel (amd64)</div>
+        <div class="download-desc">Intel-based Macs</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-darwin-amd64" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    <div class="download-card">
+        <div class="download-os">macOS</div>
+        <div class="download-arch">Apple Silicon (arm64)</div>
+        <div class="download-desc">M1/M2/M3/M4 Macs</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-darwin-arm64" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    <div class="download-card">
+        <div class="download-os">Android</div>
+        <div class="download-arch">ARM64</div>
+        <div class="download-desc">Termux on tablets &amp; phones</div>
+        <a href="https://github.com/driversti/keyforge/releases/latest/download/keyforge-android-arm64" class="btn btn-primary btn-sm">Download</a>
+    </div>
+</div>
+
+<script>
+function copyText(id) {
+    var el = document.getElementById(id);
+    navigator.clipboard.writeText(el.textContent.trim()).then(function() {
+        var btn = el.parentElement.querySelector('.copy-btn');
+        var original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = original; }, 2000);
+    });
+}
+</script>
+{{end}}

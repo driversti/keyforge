@@ -15,6 +15,9 @@ import (
 //go:embed scripts/enroll.sh
 var enrollScript []byte
 
+//go:embed scripts/install.sh
+var installScript []byte
+
 // Server holds the HTTP server dependencies and routes.
 type Server struct {
 	db         *db.DB
@@ -85,6 +88,15 @@ func (s *Server) routes() {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write(enrollScript)
 	})
+
+	// Serve the curl-pipeable install script.
+	s.mux.HandleFunc("GET /install.sh", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(installScript)
+	})
+
+	// Public download page (no auth).
+	s.mux.HandleFunc("GET /download", s.webHandler.DownloadPage)
 
 	// Token web routes (session auth required).
 	s.mux.Handle("GET /tokens", requireSession(http.HandlerFunc(s.webHandler.TokensPage)))
