@@ -23,12 +23,12 @@ KeyForge is a single binary that runs as a server and a CLI client. Every device
                              │
            ┌─────────────────┼─────────────────┐
            │                 │                 │
-     ┌─────▼─────┐    ┌─────▼─────┐    ┌─────▼─────┐
-     │  Laptop   │    │  Server   │    │   Phone   │
-     │ registers │    │ registers │    │ registers │
-     │  its key  │    │ + fetches │    │  its key  │
-     │           │    │ all keys  │    │           │
-     └───────────┘    └───────────┘    └───────────┘
+     ┌─────▼─────┐     ┌─────▼─────┐     ┌─────▼─────┐
+     │  Laptop   │     │  Server   │     │   Phone   │
+     │ registers │     │ registers │     │ registers │
+     │  its key  │     │ + fetches │     │  its key  │
+     │           │     │ all keys  │     │           │
+     └───────────┘     └───────────┘     └───────────┘
 ```
 
 Result: any enrolled device can SSH into any enrolled server. Servers can SSH to each other. No manual key distribution.
