@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.1] - 2026-03-05
+
+### Changed
+- Shortened quick enrollment codes from 8 digits to 4 for easier typing
+
 ## [v0.2.0] - 2026-03-05
 
 ### Added

@@ -138,9 +138,9 @@ func (d *DB) ListTokens() ([]models.EnrollmentToken, error) {
 	return tokens, nil
 }
 
-// generateCode creates a random 8-digit numeric string using crypto/rand.
+// generateCode creates a random 4-digit numeric string using crypto/rand.
 func generateCode() (string, error) {
-	code := make([]byte, 8)
+	code := make([]byte, 4)
 	for i := range code {
 		n, err := rand.Int(rand.Reader, big.NewInt(10))
 		if err != nil {

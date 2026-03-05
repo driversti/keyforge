@@ -25,10 +25,10 @@ func TestCreateQuickEnroll(t *testing.T) {
 		t.Errorf("expected label 'quick-enroll', got %q", token.Label)
 	}
 
-	// Verify code is exactly 8 digits.
-	matched, _ := regexp.MatchString(`^\d{8}$`, token.Code)
+	// Verify code is exactly 4 digits.
+	matched, _ := regexp.MatchString(`^\d{4}$`, token.Code)
 	if !matched {
-		t.Errorf("expected 8-digit numeric code, got %q", token.Code)
+		t.Errorf("expected 4-digit numeric code, got %q", token.Code)
 	}
 
 	if token.DeviceName != "my-laptop" {
@@ -82,7 +82,7 @@ func TestGetTokenByCode(t *testing.T) {
 func TestGetTokenByCode_NotFound(t *testing.T) {
 	db := newTestDB(t)
 
-	_, err := db.GetTokenByCode("99999999")
+	_, err := db.GetTokenByCode("9999")
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}

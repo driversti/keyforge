@@ -610,9 +610,9 @@ func TestIntegration_QuickEnrollFlow(t *testing.T) {
 		}
 	})
 
-	// 5. GET /e/99999999 → 404 not found.
+	// 5. GET /e/9999 → 404 not found.
 	t.Run("unknown code returns 404", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/e/99999999", nil)
+		req := httptest.NewRequest("GET", "/e/9999", nil)
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 
