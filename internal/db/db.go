@@ -136,6 +136,7 @@ func (d *DB) migrate() error {
 	alterColumns := []struct {
 		table, column, definition string
 	}{
+		{"enrollment_tokens", "code", "TEXT"},
 		{"enrollment_tokens", "device_name", "TEXT"},
 		{"enrollment_tokens", "accept_ssh", "BOOLEAN NOT NULL DEFAULT false"},
 		{"enrollment_tokens", "sync_interval", "TEXT"},
@@ -145,6 +146,9 @@ func (d *DB) migrate() error {
 			return fmt.Errorf("add column %s.%s: %w", col.table, col.column, err)
 		}
 	}
+
+	// Ensure unique index on code (for existing DBs where ALTER TABLE added the column).
+	_, _ = d.DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_enrollment_tokens_code ON enrollment_tokens(code)`)
 
 	return nil
 }
