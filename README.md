@@ -249,6 +249,48 @@ ssh-ed25519 AAAA... pixel-8
 
 Only the section between the markers is updated during sync. Your manually-added keys are never touched.
 
+## AuthorizedKeysCommand (Real-Time Key Lookup)
+
+Instead of syncing keys via cron, you can configure sshd to query KeyForge on every login attempt:
+
+### Setup
+
+1. Copy the `keyforge` binary to a system-wide location:
+   ```bash
+   sudo cp keyforge /usr/local/bin/keyforge
+   ```
+
+2. Edit `/etc/ssh/sshd_config`:
+   ```
+   AuthorizedKeysCommand /usr/local/bin/keyforge keys --server http://keyforge:8080
+   AuthorizedKeysCommandUser nobody
+   ```
+
+3. Restart sshd:
+   ```bash
+   sudo systemctl restart sshd
+   ```
+
+### How It Works
+
+On every SSH login attempt, sshd runs the `keyforge keys` command. It fetches all active public keys from the KeyForge server and returns them to sshd for authentication.
+
+### Cache Fallback
+
+If the KeyForge server is unreachable, the command automatically returns the last successfully fetched keys from a local cache file (`~/.cache/keyforge/authorized_keys.cache` or `/var/cache/keyforge/authorized_keys.cache` for root). This prevents SSH lockout during server outages.
+
+To disable caching: `keyforge keys --server URL --no-cache`
+
+### Comparison: Cron vs AuthorizedKeysCommand
+
+| | Cron Sync | AuthorizedKeysCommand |
+|---|---|---|
+| Key freshness | Delay (cron interval) | Real-time |
+| Revocation speed | Minutes | Instant |
+| Server dependency | Only during sync | Every SSH login |
+| Offline behavior | Stale file works | Cache fallback |
+| Setup complexity | Simple | Requires sshd_config |
+
 ## Security
 
 - **Private keys never leave devices.** KeyForge only stores and distributes public keys.
