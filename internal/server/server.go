@@ -18,6 +18,9 @@ var enrollScript []byte
 //go:embed scripts/install.sh
 var installScript []byte
 
+//go:embed scripts/enroll_body.sh
+var enrollScriptBody string
+
 // Server holds the HTTP server dependencies and routes.
 type Server struct {
 	db         *db.DB
@@ -34,7 +37,7 @@ func New(database *db.DB, apiKey string, serverURL string) (*Server, error) {
 	s := &Server{
 		db:         database,
 		apiHandler: api.NewHandler(database, apiKey),
-		webHandler: web.NewHandler(database, serverURL, apiKey, sessions),
+		webHandler: web.NewHandler(database, serverURL, apiKey, sessions, enrollScriptBody),
 		apiKey:     apiKey,
 		sessions:   sessions,
 		mux:        http.NewServeMux(),
@@ -95,11 +98,17 @@ func (s *Server) routes() {
 		w.Write(installScript)
 	})
 
+	// Quick enrollment URL (public, no auth).
+	s.mux.HandleFunc("GET /e/{code}", func(w http.ResponseWriter, r *http.Request) {
+		s.webHandler.QuickEnrollPage(w, r, r.PathValue("code"))
+	})
+
 	// Public download page (no auth).
 	s.mux.HandleFunc("GET /download", s.webHandler.DownloadPage)
 
 	// Token web routes (session auth required).
 	s.mux.Handle("GET /tokens", requireSession(http.HandlerFunc(s.webHandler.TokensPage)))
+	s.mux.Handle("POST /tokens/quick-enroll", requireSession(http.HandlerFunc(s.webHandler.CreateQuickEnrollSubmit)))
 	s.mux.Handle("POST /tokens", requireSession(http.HandlerFunc(s.webHandler.CreateTokenSubmit)))
 	s.mux.Handle("POST /tokens/{id}/delete", requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.webHandler.DeleteTokenAction(w, r, r.PathValue("id"))
