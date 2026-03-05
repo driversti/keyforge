@@ -57,7 +57,7 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	defer database.Close()
 
 	// 2. Create server.
-	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	srv, err := server.New(database, testAPIKey, "http://localhost:9315")
 	if err != nil {
 		t.Fatalf("creating server: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestIntegration_EnrollmentFlow(t *testing.T) {
 	}
 	defer database.Close()
 
-	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	srv, err := server.New(database, testAPIKey, "http://localhost:9315")
 	if err != nil {
 		t.Fatalf("creating server: %v", err)
 	}
@@ -446,7 +446,7 @@ func TestIntegration_AuditLogAPI(t *testing.T) {
 	}
 	defer database.Close()
 
-	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	srv, err := server.New(database, testAPIKey, "http://localhost:9315")
 	if err != nil {
 		t.Fatalf("creating server: %v", err)
 	}
@@ -552,7 +552,7 @@ func TestIntegration_KeysCacheFallback(t *testing.T) {
 	}
 	defer database.Close()
 
-	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	srv, err := server.New(database, testAPIKey, "http://localhost:9315")
 	if err != nil {
 		t.Fatalf("creating server: %v", err)
 	}

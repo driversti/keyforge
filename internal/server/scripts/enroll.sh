@@ -37,7 +37,7 @@ fi
 
 # If SERVER_URL not set, try to detect from KEYFORGE_SERVER env or use default
 if [ -z "$SERVER_URL" ]; then
-    SERVER_URL="${KEYFORGE_SERVER:-http://localhost:8080}"
+    SERVER_URL="${KEYFORGE_SERVER:-http://localhost:9315}"
 fi
 
 # Generate SSH key if needed

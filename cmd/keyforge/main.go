@@ -31,10 +31,10 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:8080", "KeyForge server URL")
+	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:9315", "KeyForge server URL")
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "API key for authentication")
 
-	serveCmd.Flags().Int("port", 8080, "Port to listen on")
+	serveCmd.Flags().Int("port", 9315, "Port to listen on")
 	serveCmd.Flags().String("data", "./keyforge-data", "Data directory path")
 
 	rootCmd.AddCommand(serveCmd)
