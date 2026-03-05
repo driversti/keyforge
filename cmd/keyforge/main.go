@@ -41,6 +41,7 @@ func init() {
 	rootCmd.AddCommand(newDeviceCmd())
 	rootCmd.AddCommand(newKeysCmd())
 	rootCmd.AddCommand(newTokenCmd())
+	rootCmd.AddCommand(newEnrollCmd())
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
