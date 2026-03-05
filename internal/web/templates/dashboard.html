@@ -1,0 +1,54 @@
+{{define "title"}}Dashboard{{end}}
+{{define "content"}}
+<div class="top-bar">
+    <h1>Dashboard</h1>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{.TotalDevices}}</div>
+        <div class="stat-label">Total Devices</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number stat-success">{{.ActiveDevices}}</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number stat-danger">{{.RevokedDevices}}</div>
+        <div class="stat-label">Revoked</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{.SSHAccepting}}</div>
+        <div class="stat-label">SSH Accepting</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Activity</h2>
+    {{if .RecentActivity}}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .RecentActivity}}
+            <tr>
+                <td style="white-space:nowrap">{{formatDate .CreatedAt}}</td>
+                <td><span class="badge {{actionBadgeClass .Action}}">{{.Action}}</span></td>
+                <td>{{.Details}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <div style="text-align:center;margin-top:1rem">
+        <a href="/audit" class="btn btn-outline btn-sm">View Full Audit Log</a>
+    </div>
+    {{else}}
+    <p style="color:var(--text-muted)">No activity yet.</p>
+    {{end}}
+</div>
+{{end}}

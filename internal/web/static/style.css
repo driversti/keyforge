@@ -358,6 +358,35 @@ tr:hover td {
     color: var(--text-muted);
 }
 
+/* Stats grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.stat-number.stat-success {
+    color: var(--success);
+}
+
+.stat-number.stat-danger {
+    color: var(--danger);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     nav .container {

@@ -156,6 +156,40 @@ func (h *Handler) renderPage(w http.ResponseWriter, page string, data any) {
 	}
 }
 
+// DashboardPage renders the dashboard with stats and recent activity.
+func (h *Handler) DashboardPage(w http.ResponseWriter, r *http.Request) {
+	devices, err := h.db.ListDevices()
+	if err != nil {
+		http.Error(w, "failed to list devices", http.StatusInternalServerError)
+		return
+	}
+
+	var active, revoked, sshAccepting int
+	for _, d := range devices {
+		if d.Status == models.StatusActive {
+			active++
+			if d.AcceptsSSH {
+				sshAccepting++
+			}
+		} else {
+			revoked++
+		}
+	}
+
+	recentActivity, err := h.db.ListAudit(10, 0)
+	if err != nil {
+		recentActivity = nil // non-fatal
+	}
+
+	h.renderPage(w, "dashboard.html", map[string]any{
+		"TotalDevices":   len(devices),
+		"ActiveDevices":  active,
+		"RevokedDevices": revoked,
+		"SSHAccepting":   sshAccepting,
+		"RecentActivity": recentActivity,
+	})
+}
+
 // DevicesPage lists all devices.
 func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
 	devices, err := h.db.ListDevices()
@@ -240,7 +274,7 @@ func (h *Handler) AddDeviceSubmit(w http.ResponseWriter, r *http.Request) {
 	devID := device.ID
 	h.db.LogAudit("device.created", &devID, fmt.Sprintf("device %q registered via web UI", device.Name), r.RemoteAddr)
 
-	http.Redirect(w, r, "/?flash="+url.QueryEscape(fmt.Sprintf("Device %q registered successfully.", device.Name)), http.StatusSeeOther)
+	http.Redirect(w, r, "/devices?flash="+url.QueryEscape(fmt.Sprintf("Device %q registered successfully.", device.Name)), http.StatusSeeOther)
 }
 
 // AuthorizedKeysPage shows all active public keys.
@@ -266,21 +300,21 @@ func (h *Handler) AuthorizedKeysPage(w http.ResponseWriter, r *http.Request) {
 // RevokeDeviceAction revokes a device and redirects to the device list.
 func (h *Handler) RevokeDeviceAction(w http.ResponseWriter, r *http.Request, id string) {
 	if err := h.db.RevokeDevice(id); err != nil {
-		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to revoke device."), http.StatusSeeOther)
+		http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Failed to revoke device."), http.StatusSeeOther)
 		return
 	}
 	h.db.LogAudit("device.revoked", &id, "device revoked via web UI", r.RemoteAddr)
-	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device revoked."), http.StatusSeeOther)
+	http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device revoked."), http.StatusSeeOther)
 }
 
 // ReactivateDeviceAction reactivates a device and redirects to the device list.
 func (h *Handler) ReactivateDeviceAction(w http.ResponseWriter, r *http.Request, id string) {
 	if err := h.db.ReactivateDevice(id); err != nil {
-		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to reactivate device."), http.StatusSeeOther)
+		http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Failed to reactivate device."), http.StatusSeeOther)
 		return
 	}
 	h.db.LogAudit("device.reactivated", &id, "device reactivated via web UI", r.RemoteAddr)
-	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device reactivated."), http.StatusSeeOther)
+	http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device reactivated."), http.StatusSeeOther)
 }
 
 // DeleteDeviceAction deletes a device and redirects to the device list.
@@ -289,7 +323,7 @@ func (h *Handler) DeleteDeviceAction(w http.ResponseWriter, r *http.Request, id 
 	device, _ := h.db.GetDevice(id)
 
 	if err := h.db.DeleteDevice(id); err != nil {
-		http.Redirect(w, r, "/?flash="+url.QueryEscape("Failed to delete device."), http.StatusSeeOther)
+		http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Failed to delete device."), http.StatusSeeOther)
 		return
 	}
 
@@ -298,7 +332,7 @@ func (h *Handler) DeleteDeviceAction(w http.ResponseWriter, r *http.Request, id 
 		details = fmt.Sprintf("device %q deleted via web UI", device.Name)
 	}
 	h.db.LogAudit("device.deleted", &id, details, r.RemoteAddr)
-	http.Redirect(w, r, "/?flash="+url.QueryEscape("Device deleted."), http.StatusSeeOther)
+	http.Redirect(w, r, "/devices?flash="+url.QueryEscape("Device deleted."), http.StatusSeeOther)
 }
 
 // TokensPage lists all enrollment tokens.

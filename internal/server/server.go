@@ -54,7 +54,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /logout", s.webHandler.LogoutHandler)
 
 	// Web UI routes (session auth required).
-	s.mux.Handle("GET /{$}", requireSession(http.HandlerFunc(s.webHandler.DevicesPage)))
+	s.mux.Handle("GET /{$}", requireSession(http.HandlerFunc(s.webHandler.DashboardPage)))
+	s.mux.Handle("GET /devices", requireSession(http.HandlerFunc(s.webHandler.DevicesPage)))
 	s.mux.Handle("GET /add", requireSession(http.HandlerFunc(s.webHandler.AddDevicePage)))
 	s.mux.Handle("POST /add", requireSession(http.HandlerFunc(s.webHandler.AddDeviceSubmit)))
 	s.mux.Handle("GET /authorized-keys", requireSession(http.HandlerFunc(s.webHandler.AuthorizedKeysPage)))
