@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.2.0] - 2026-03-05
+
+### Added
+- **Quick Enrollment URLs** — generate a one-liner (`curl -sSL .../e/12345678 | sh`) from the web UI to enroll devices with zero flags
+- **Web password login** — set a short password in Settings instead of typing the full API key
+- `KEYFORGE_PASSWORD` env var to seed initial web password on first startup
+- `/e/{code}` endpoint with content negotiation (browsers get info page, curl gets script)
+- Quick Enroll form on the Tokens page (device name, accept-ssh, sync interval, expiry)
+- Integration tests for quick enrollment flow
+
 ## [v0.1.2] - 2026-03-05
 
 ### Fixed
