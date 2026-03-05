@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // CreateToken generates a new enrollment token with the given label and expiry.

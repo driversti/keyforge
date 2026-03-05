@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // Valid SSH test keys.

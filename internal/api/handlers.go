@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // Handler holds the database dependency for all API handlers.

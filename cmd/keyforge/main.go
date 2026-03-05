@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/driversti/keyforge/internal/auth"
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/server"
+	"driversti.dev/keyforge/internal/auth"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/server"
 )
 
 var (

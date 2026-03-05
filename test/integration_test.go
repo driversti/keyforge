@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/keys"
-	"github.com/driversti/keyforge/internal/models"
-	"github.com/driversti/keyforge/internal/server"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/keys"
+	"driversti.dev/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/server"
 )
 
 const testAPIKey = "test-api-key"

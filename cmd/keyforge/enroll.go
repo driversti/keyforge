@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/driversti/keyforge/internal/keys"
+	"driversti.dev/keyforge/internal/keys"
 )
 
 func newEnrollCmd() *cobra.Command {

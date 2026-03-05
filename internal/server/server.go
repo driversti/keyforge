@@ -6,10 +6,10 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/driversti/keyforge/internal/api"
-	"github.com/driversti/keyforge/internal/auth"
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/web"
+	"driversti.dev/keyforge/internal/api"
+	"driversti.dev/keyforge/internal/auth"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/web"
 )
 
 //go:embed scripts/enroll.sh

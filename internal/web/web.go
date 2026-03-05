@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/driversti/keyforge/internal/db"
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/db"
+	"driversti.dev/keyforge/internal/models"
 )
 
 //go:embed templates static

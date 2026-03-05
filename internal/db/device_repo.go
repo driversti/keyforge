@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // ErrNotFound is returned when a requested record does not exist.

@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // LogAudit inserts a new entry into the audit log.

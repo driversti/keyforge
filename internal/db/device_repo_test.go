@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/driversti/keyforge/internal/models"
+	"driversti.dev/keyforge/internal/models"
 )
 
 // Valid SSH test keys for use in tests.

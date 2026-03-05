@@ -1,4 +1,4 @@
-module github.com/driversti/keyforge
+module driversti.dev/keyforge
 
 go 1.25.0
 
