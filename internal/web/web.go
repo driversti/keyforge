@@ -446,6 +446,36 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// SettingsPage shows server settings and info.
+func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	devices, _ := h.db.ListDevices()
+	tokens, _ := h.db.ListTokens()
+	auditCount, _ := h.db.CountAudit()
+
+	var active, sshAccepting int
+	for _, d := range devices {
+		if d.Status == models.StatusActive {
+			active++
+			if d.AcceptsSSH {
+				sshAccepting++
+			}
+		}
+	}
+
+	masked := h.apiKey[:8] + strings.Repeat("*", len(h.apiKey)-8)
+
+	h.renderPage(w, "settings.html", map[string]any{
+		"APIKey":        h.apiKey,
+		"MaskedAPIKey":  masked,
+		"ServerURL":     h.serverURL,
+		"TotalDevices":  len(devices),
+		"ActiveDevices": active,
+		"SSHAccepting":  sshAccepting,
+		"TotalTokens":   len(tokens),
+		"AuditCount":    auditCount,
+	})
+}
+
 // LoginPage renders the login form.
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	// If already authenticated, redirect to home.

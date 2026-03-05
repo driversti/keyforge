@@ -1,0 +1,55 @@
+{{define "title"}}Settings{{end}}
+{{define "content"}}
+<div class="top-bar">
+    <h1>Settings</h1>
+</div>
+
+<div class="card">
+    <h2>API Key</h2>
+    <p style="color:var(--text-muted);margin-bottom:1rem">Use this key for CLI commands and API access. Keep it secret.</p>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+        <code id="api-key-display" style="flex:1;background:var(--bg);padding:0.6rem 0.8rem;border-radius:var(--radius);border:1px solid var(--border);font-size:0.85rem;overflow:hidden;text-overflow:ellipsis">{{.MaskedAPIKey}}</code>
+        <button class="btn btn-outline btn-sm" onclick="toggleAPIKey()" id="toggle-key-btn">Show</button>
+        <button class="btn btn-outline btn-sm" onclick="copyAPIKey()">Copy</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Server Info</h2>
+    <table>
+        <tbody>
+            <tr><td style="font-weight:500;width:200px">Server URL</td><td style="font-family:monospace">{{.ServerURL}}</td></tr>
+            <tr><td style="font-weight:500">Total Devices</td><td>{{.TotalDevices}}</td></tr>
+            <tr><td style="font-weight:500">Active Devices</td><td>{{.ActiveDevices}}</td></tr>
+            <tr><td style="font-weight:500">SSH-Accepting</td><td>{{.SSHAccepting}}</td></tr>
+            <tr><td style="font-weight:500">Enrollment Tokens</td><td>{{.TotalTokens}}</td></tr>
+            <tr><td style="font-weight:500">Audit Log Entries</td><td>{{.AuditCount}}</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Quick Reference</h2>
+    <p style="color:var(--text-muted);margin-bottom:0.75rem">Common CLI commands:</p>
+    <div class="keys-output">keyforge serve --port 8080 --data ./keyforge-data
+keyforge enroll --name "device" --token TOKEN --server {{.ServerURL}}
+keyforge keys --install --server {{.ServerURL}}
+keyforge token create --label "new-device" --expires 1h --server {{.ServerURL}} --api-key API_KEY</div>
+</div>
+
+<script>
+var keyHidden = true;
+var fullKey = "{{.APIKey}}";
+var maskedKey = "{{.MaskedAPIKey}}";
+function toggleAPIKey() {
+    var el = document.getElementById('api-key-display');
+    var btn = document.getElementById('toggle-key-btn');
+    keyHidden = !keyHidden;
+    el.textContent = keyHidden ? maskedKey : fullKey;
+    btn.textContent = keyHidden ? 'Show' : 'Hide';
+}
+function copyAPIKey() {
+    navigator.clipboard.writeText(fullKey);
+}
+</script>
+{{end}}
