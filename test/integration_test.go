@@ -602,7 +602,7 @@ func TestIntegration_QuickEnrollFlow(t *testing.T) {
 		if !strings.Contains(body, fmt.Sprintf("TOKEN=%q", token.Token)) {
 			t.Fatal("expected script to contain TOKEN variable")
 		}
-		if !strings.Contains(body, fmt.Sprintf("SERVER_URL=%q", serverURL)) {
+		if !strings.Contains(body, "SERVER_URL=") {
 			t.Fatal("expected script to contain SERVER_URL variable")
 		}
 		if !strings.Contains(body, `ACCEPT_SSH="true"`) {

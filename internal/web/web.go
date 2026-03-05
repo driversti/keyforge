@@ -694,12 +694,22 @@ func (h *Handler) QuickEnrollPage(w http.ResponseWriter, r *http.Request, code s
 		h.renderQuickEnrollPage(w, token)
 		return
 	}
-	h.renderQuickEnrollScript(w, token)
+	h.renderQuickEnrollScript(w, r, token)
+}
+
+// requestServerURL derives the server URL from the incoming request.
+// If the client reached us via IP/non-standard host, use that instead of the configured serverURL.
+func (h *Handler) requestServerURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
 }
 
 // renderQuickEnrollScript writes a shell script with baked-in variables followed
 // by the shared enrollment body.
-func (h *Handler) renderQuickEnrollScript(w http.ResponseWriter, token *models.EnrollmentToken) {
+func (h *Handler) renderQuickEnrollScript(w http.ResponseWriter, r *http.Request, token *models.EnrollmentToken) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	acceptSSH := "false"
@@ -707,10 +717,13 @@ func (h *Handler) renderQuickEnrollScript(w http.ResponseWriter, token *models.E
 		acceptSSH = "true"
 	}
 
+	// Use the URL the client actually reached, not the configured public URL.
+	serverURL := h.requestServerURL(r)
+
 	fmt.Fprintf(w, "#!/bin/sh\nset -e\n\n")
 	fmt.Fprintf(w, "NAME=%q\n", token.DeviceName)
 	fmt.Fprintf(w, "TOKEN=%q\n", token.Token)
-	fmt.Fprintf(w, "SERVER_URL=%q\n", h.serverURL)
+	fmt.Fprintf(w, "SERVER_URL=%q\n", serverURL)
 	fmt.Fprintf(w, "ACCEPT_SSH=%q\n", acceptSSH)
 	fmt.Fprintf(w, "SYNC_INTERVAL=%q\n", token.SyncInterval)
 	fmt.Fprintf(w, "KEY_PATH=\"$HOME/.ssh/id_ed25519\"\n\n")
