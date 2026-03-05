@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/driversti/keyforge/internal/db"
+	"github.com/driversti/keyforge/internal/keys"
 	"github.com/driversti/keyforge/internal/models"
 	"github.com/driversti/keyforge/internal/server"
 )
@@ -535,6 +538,85 @@ func TestIntegration_AuditLogAPI(t *testing.T) {
 
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", resp.StatusCode)
+		}
+	})
+}
+
+func TestIntegration_KeysCacheFallback(t *testing.T) {
+	const cacheTestKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbda9fDvF5RsoqRdX4EqZREGdC0qaS4LGb+rGuyQeEN cache@test"
+
+	// 1. Create in-memory DB and server.
+	database, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("creating database: %v", err)
+	}
+	defer database.Close()
+
+	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	if err != nil {
+		t.Fatalf("creating server: %v", err)
+	}
+
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	client := ts.Client()
+
+	// 2. Create a device via POST /api/v1/devices with API key auth.
+	t.Run("create device", func(t *testing.T) {
+		body := `{"name":"cache-device","public_key":"` + cacheTestKey + `","accepts_ssh":false,"tags":["cache-test"]}`
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(b))
+		}
+	})
+
+	// 3. Fetch keys via GET /api/v1/authorized_keys — verify the device's public key is present.
+	var keysContent string
+	t.Run("fetch authorized keys", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/authorized_keys", "", false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("reading body: %v", err)
+		}
+		keysContent = string(b)
+
+		if !strings.Contains(keysContent, "cache@test") {
+			t.Fatal("expected authorized_keys to contain cache@test key")
+		}
+	})
+
+	// 4. Write the keys to a temp cache file via keys.WriteCache.
+	cachePath := filepath.Join(t.TempDir(), "authorized_keys.cache")
+	t.Run("write cache", func(t *testing.T) {
+		if err := keys.WriteCache(cachePath, keysContent); err != nil {
+			t.Fatalf("writing cache: %v", err)
+		}
+	})
+
+	// 5. Read back from cache via keys.ReadCache — verify content matches.
+	t.Run("read cache", func(t *testing.T) {
+		cached, modTime, err := keys.ReadCache(cachePath)
+		if err != nil {
+			t.Fatalf("reading cache: %v", err)
+		}
+
+		if cached != keysContent {
+			t.Fatalf("cache content mismatch:\n  got:  %q\n  want: %q", cached, keysContent)
+		}
+
+		// 6. Verify modtime is recent (within last minute).
+		if time.Since(modTime) > time.Minute {
+			t.Fatalf("cache modtime too old: %v (now: %v)", modTime, time.Now())
 		}
 	})
 }
