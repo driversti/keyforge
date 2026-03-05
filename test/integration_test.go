@@ -2,6 +2,7 @@ package test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -250,6 +251,184 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected 200 for /login, got %d", resp.StatusCode)
+		}
+	})
+}
+
+func TestIntegration_EnrollmentFlow(t *testing.T) {
+	// Unique SSH keys for this test (different from FullWorkflow keys).
+	const enrolledKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUzjCL5Mf1GGjEV5wIXfLGb85kP8cBHdAqh2dqf9HEe enrolled@device"
+	const reusedKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMr9Q7pGXdBrFJFc3gv3FPwXlRJ7Rq7BGvhwfWVbKJ5Y reuse@device"
+	const expiredKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJqMG5RvPaGpKsh3LDjBg85qjDbxFnxP7fGCvPqHbKRZ expired@device"
+	const noAuthKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDeWGCvPy3FJfvKFVUqDZnLwzKfPegdbYJVeMXihlhb6 noauth@device"
+
+	// 1. Create in-memory DB and server.
+	database, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("creating database: %v", err)
+	}
+	defer database.Close()
+
+	srv, err := server.New(database, testAPIKey, "http://localhost:8080")
+	if err != nil {
+		t.Fatalf("creating server: %v", err)
+	}
+
+	// 2. Start httptest server.
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	client := ts.Client()
+
+	// a. Create enrollment token.
+	var tokenValue string
+	t.Run("create enrollment token", func(t *testing.T) {
+		body := `{"label":"test-token","expires_in":"1h"}`
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/tokens", body, true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(b))
+		}
+
+		var token models.EnrollmentToken
+		if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+		if token.Token == "" {
+			t.Fatal("expected token value to be set")
+		}
+		if token.Label != "test-token" {
+			t.Fatalf("expected label %q, got %q", "test-token", token.Label)
+		}
+		tokenValue = token.Token
+	})
+
+	// b. Enroll device with token (no API key).
+	t.Run("enroll device with token", func(t *testing.T) {
+		body := fmt.Sprintf(`{"name":"enrolled-device","public_key":"%s","accepts_ssh":false,"enrollment_token":"%s"}`, enrolledKey, tokenValue)
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(b))
+		}
+
+		var device models.Device
+		if err := json.NewDecoder(resp.Body).Decode(&device); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+		if device.Name != "enrolled-device" {
+			t.Fatalf("expected name %q, got %q", "enrolled-device", device.Name)
+		}
+	})
+
+	// c. Verify device in list.
+	t.Run("verify device in list", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/devices", "", true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		var devices []models.Device
+		if err := json.NewDecoder(resp.Body).Decode(&devices); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+
+		found := false
+		for _, d := range devices {
+			if d.Name == "enrolled-device" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatal("expected enrolled-device to appear in device list")
+		}
+	})
+
+	// d. Token is burned.
+	t.Run("token is burned", func(t *testing.T) {
+		resp := doRequest(t, client, "GET", ts.URL+"/api/v1/tokens", "", true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+
+		var tokens []models.EnrollmentToken
+		if err := json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+
+		found := false
+		for _, tok := range tokens {
+			if tok.Token == tokenValue {
+				found = true
+				if !tok.Used {
+					t.Fatal("expected token to be marked as used")
+				}
+				break
+			}
+		}
+		if !found {
+			t.Fatal("expected to find the enrollment token in the list")
+		}
+	})
+
+	// e. Reuse token fails.
+	t.Run("reuse token fails", func(t *testing.T) {
+		body := fmt.Sprintf(`{"name":"reuse-device","public_key":"%s","accepts_ssh":false,"enrollment_token":"%s"}`, reusedKey, tokenValue)
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusUnauthorized {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 401, got %d: %s", resp.StatusCode, string(b))
+		}
+	})
+
+	// f. Expired token fails.
+	t.Run("expired token fails", func(t *testing.T) {
+		// Create a token that is already expired.
+		body := `{"label":"expired-token","expires_in":"-1s"}`
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/tokens", body, true)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 201 creating expired token, got %d: %s", resp.StatusCode, string(b))
+		}
+
+		var expiredToken models.EnrollmentToken
+		if err := json.NewDecoder(resp.Body).Decode(&expiredToken); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+
+		// Try to enroll with the expired token.
+		enrollBody := fmt.Sprintf(`{"name":"expired-device","public_key":"%s","accepts_ssh":false,"enrollment_token":"%s"}`, expiredKey, expiredToken.Token)
+		enrollResp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", enrollBody, false)
+		defer enrollResp.Body.Close()
+
+		if enrollResp.StatusCode != http.StatusUnauthorized {
+			b, _ := io.ReadAll(enrollResp.Body)
+			t.Fatalf("expected 401 for expired token, got %d: %s", enrollResp.StatusCode, string(b))
+		}
+	})
+
+	// g. No auth fails.
+	t.Run("no auth fails", func(t *testing.T) {
+		body := fmt.Sprintf(`{"name":"noauth-device","public_key":"%s","accepts_ssh":false}`, noAuthKey)
+		resp := doRequest(t, client, "POST", ts.URL+"/api/v1/devices", body, false)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusUnauthorized {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 401, got %d: %s", resp.StatusCode, string(b))
 		}
 	})
 }
