@@ -113,7 +113,7 @@ if [ "$ACCEPT_SSH" = "true" ]; then
             esac
             CRON_LINE="$CRON_SCHEDULE curl -sS $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f $AUTH_FILE.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm /tmp/kf_keys)"
 
-            (crontab -l 2>/dev/null | grep -v "KeyForge"; echo "$CRON_LINE") | crontab -
+            (crontab -l 2>/dev/null | grep -v "KeyForge"; printf '%s\n' "$CRON_LINE") | crontab -
             echo "Cron job installed: sync every $SYNC_INTERVAL"
         fi
     fi
