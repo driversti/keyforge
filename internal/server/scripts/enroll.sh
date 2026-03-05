@@ -91,9 +91,9 @@ if [ "$ACCEPT_SSH" = "true" ]; then
 
     # Set up cron if requested
     if [ -n "$SYNC_INTERVAL" ]; then
-        # Convert interval to cron expression
-        UNIT="${SYNC_INTERVAL: -1}"
-        VALUE="${SYNC_INTERVAL%?}"
+        # Convert interval to cron expression (POSIX-compatible)
+        UNIT=$(echo "$SYNC_INTERVAL" | sed 's/.*\(.\)$/\1/')
+        VALUE=$(echo "$SYNC_INTERVAL" | sed 's/.$//')
 
         case "$UNIT" in
             m)
