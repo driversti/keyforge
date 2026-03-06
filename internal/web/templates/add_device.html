@@ -6,24 +6,24 @@
 </div>
 
 {{if .Error}}
-<div class="flash error">{{.Error}}</div>
+<div class="flash flash-error">{{.Error}}</div>
 {{end}}
 
 <div class="card">
     <form method="POST" action="/add">
         <div class="form-group">
-            <label for="name">Device Name</label>
-            <input type="text" id="name" name="name" placeholder="e.g. macbook-pro" value="{{.Name}}" required>
+            <label for="name" class="form-label">Device Name</label>
+            <input type="text" id="name" name="name" class="form-input" placeholder="e.g. macbook-pro" value="{{.Name}}" required>
         </div>
 
         <div class="form-group">
-            <label for="public_key">SSH Public Key</label>
-            <textarea id="public_key" name="public_key" placeholder="ssh-ed25519 AAAA... user@host" required>{{.PublicKey}}</textarea>
+            <label for="public_key" class="form-label">SSH Public Key</label>
+            <textarea id="public_key" name="public_key" class="form-textarea" placeholder="ssh-ed25519 AAAA... user@host" required>{{.PublicKey}}</textarea>
         </div>
 
         <div class="form-group">
-            <label for="tags">Tags (comma-separated)</label>
-            <input type="text" id="tags" name="tags" placeholder="e.g. work, laptop" value="{{.Tags}}">
+            <label for="tags" class="form-label">Tags (comma-separated)</label>
+            <input type="text" id="tags" name="tags" class="form-input" placeholder="e.g. work, laptop" value="{{.Tags}}">
         </div>
 
         <div class="form-group">

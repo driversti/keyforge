@@ -6,29 +6,33 @@
 </div>
 
 <div class="card">
-    <h2>Quick Install</h2>
-    <p class="stat-label" style="margin-bottom:0.75rem;">Run this command to install keyforge on any supported platform:</p>
+    <div class="card-header">
+        <h2 class="card-title">Quick Install</h2>
+    </div>
+    <p class="stat-label">Run this command to install keyforge on any supported platform:</p>
     <div class="install-cmd">
         <code id="install-cmd">curl -sSL {{.ServerURL}}/install.sh | sh</code>
-        <button class="copy-btn" onclick="copyText('install-cmd')">Copy</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyText('install-cmd')">Copy</button>
     </div>
 </div>
 
 <div class="card">
-    <h2>Install + Enroll</h2>
-    <p class="stat-label" style="margin-bottom:0.75rem;">Install the binary and enroll this device in one step:</p>
+    <div class="card-header">
+        <h2 class="card-title">Install + Enroll</h2>
+    </div>
+    <p class="stat-label">Install the binary and enroll this device in one step:</p>
     <div class="install-cmd">
         <code id="enroll-cmd">curl -sSL {{.ServerURL}}/install.sh | sh -s -- \
   --name "my-device" \
   --token YOUR_TOKEN \
   --server {{.ServerURL}} \
   --accept-ssh</code>
-        <button class="copy-btn" onclick="copyText('enroll-cmd')">Copy</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyText('enroll-cmd')">Copy</button>
     </div>
 </div>
 
-<h2 style="margin-bottom:1rem;">Download Binaries</h2>
-<p class="stat-label" style="margin-bottom:1rem;">Or download the binary directly from GitHub Releases:</p>
+<h2 style="margin-bottom:var(--space-4);">Download Binaries</h2>
+<p class="stat-label" style="margin-bottom:var(--space-4);">Or download the binary directly from GitHub Releases:</p>
 
 <div class="download-grid">
     <div class="download-card">
@@ -73,7 +77,7 @@
 function copyText(id) {
     var el = document.getElementById(id);
     navigator.clipboard.writeText(el.textContent.trim()).then(function() {
-        var btn = el.parentElement.querySelector('.copy-btn');
+        var btn = el.parentElement.querySelector('.btn');
         var original = btn.textContent;
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = original; }, 2000);

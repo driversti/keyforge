@@ -6,17 +6,19 @@
 </div>
 
 <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <h2>Public Keys</h2>
-        <button class="copy-btn" onclick="copyKeys()">Copy to Clipboard</button>
+    <div class="card-header">
+        <h2 class="card-title">Public Keys</h2>
+        <button class="btn btn-ghost btn-sm" onclick="copyKeys()">Copy to Clipboard</button>
     </div>
     <div class="keys-output" id="keys-output">{{.Keys}}</div>
 </div>
 
 <div class="card">
-    <h2>Quick Install</h2>
+    <div class="card-header">
+        <h2 class="card-title">Quick Install</h2>
+    </div>
     <p class="stat-label">Add all active keys to your server's authorized_keys file:</p>
-    <div class="keys-output" style="margin-top:0.75rem;">curl -s {{.ServerURL}}/api/v1/authorized_keys >> ~/.ssh/authorized_keys</div>
+    <div class="keys-output">curl -s {{.ServerURL}}/api/v1/authorized_keys >> ~/.ssh/authorized_keys</div>
 </div>
 
 <script>

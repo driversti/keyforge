@@ -5,39 +5,41 @@
 </div>
 
 {{if .Flash}}
-<div class="flash">{{.Flash}}</div>
+<div class="flash flash-success">{{.Flash}}</div>
 {{end}}
 
 <div class="card">
-    <h2>Web Password</h2>
-    <p style="color:var(--text-muted);margin-bottom:1rem">Set a short password for web UI login. You can always use the API key too.</p>
+    <div class="card-header">
+        <h2 class="card-title">Web Password</h2>
+    </div>
+    <p class="text-muted">Set a short password for web UI login. You can always use the API key too.</p>
     {{if .HasPassword}}
-    <p><span class="badge active">Password set</span></p>
-    <form method="POST" action="/settings/password" style="margin-top:1rem">
+    <p><span class="badge badge-active">Password set</span></p>
+    <form method="POST" action="/settings/password" style="margin-top:var(--space-4)">
         <div class="form-group">
-            <label for="password">New Password</label>
-            <input type="password" id="password" name="password" placeholder="Enter new password">
+            <label for="password" class="form-label">New Password</label>
+            <input type="password" id="password" name="password" class="form-input" placeholder="Enter new password">
         </div>
         <div class="form-group">
-            <label for="confirm">Confirm Password</label>
-            <input type="password" id="confirm" name="confirm" placeholder="Confirm new password">
+            <label for="confirm" class="form-label">Confirm Password</label>
+            <input type="password" id="confirm" name="confirm" class="form-input" placeholder="Confirm new password">
         </div>
-        <div style="display:flex;gap:0.5rem">
+        <div style="display:flex;gap:var(--space-2)">
             <button type="submit" class="btn btn-primary btn-sm">Change Password</button>
         </div>
     </form>
-    <form method="POST" action="/settings/password/remove" style="margin-top:0.75rem" onsubmit="return confirm('Remove password? You will need the API key to log in.')">
+    <form method="POST" action="/settings/password/remove" style="margin-top:var(--space-3)" onsubmit="return confirm('Remove password? You will need the API key to log in.')">
         <button type="submit" class="btn btn-danger btn-sm">Remove Password</button>
     </form>
     {{else}}
     <form method="POST" action="/settings/password">
         <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" placeholder="Choose a password" required>
+            <label for="password" class="form-label">Password</label>
+            <input type="password" id="password" name="password" class="form-input" placeholder="Choose a password" required>
         </div>
         <div class="form-group">
-            <label for="confirm">Confirm Password</label>
-            <input type="password" id="confirm" name="confirm" placeholder="Confirm password" required>
+            <label for="confirm" class="form-label">Confirm Password</label>
+            <input type="password" id="confirm" name="confirm" class="form-input" placeholder="Confirm password" required>
         </div>
         <button type="submit" class="btn btn-primary btn-sm">Set Password</button>
     </form>
@@ -45,32 +47,40 @@
 </div>
 
 <div class="card">
-    <h2>API Key</h2>
-    <p style="color:var(--text-muted);margin-bottom:1rem">Use this key for CLI commands and API access. Keep it secret.</p>
-    <div style="display:flex;gap:0.5rem;align-items:center">
-        <code id="api-key-display" style="flex:1;background:var(--bg);padding:0.6rem 0.8rem;border-radius:var(--radius);border:1px solid var(--border);font-size:0.85rem;overflow:hidden;text-overflow:ellipsis">{{.MaskedAPIKey}}</code>
-        <button class="btn btn-outline btn-sm" onclick="toggleAPIKey()" id="toggle-key-btn">Show</button>
-        <button class="btn btn-outline btn-sm" onclick="copyAPIKey()">Copy</button>
+    <div class="card-header">
+        <h2 class="card-title">API Key</h2>
+    </div>
+    <p class="text-muted">Use this key for CLI commands and API access. Keep it secret.</p>
+    <div style="display:flex;gap:var(--space-2);align-items:center">
+        <code id="api-key-display" class="api-key-display">{{.MaskedAPIKey}}</code>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAPIKey()" id="toggle-key-btn">Show</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyAPIKey()">Copy</button>
     </div>
 </div>
 
 <div class="card">
-    <h2>Server Info</h2>
+    <div class="card-header">
+        <h2 class="card-title">Server Info</h2>
+    </div>
+    <div class="table-wrapper">
     <table>
         <tbody>
-            <tr><td style="font-weight:500;width:200px">Server URL</td><td style="font-family:monospace">{{.ServerURL}}</td></tr>
-            <tr><td style="font-weight:500">Total Devices</td><td>{{.TotalDevices}}</td></tr>
-            <tr><td style="font-weight:500">Active Devices</td><td>{{.ActiveDevices}}</td></tr>
-            <tr><td style="font-weight:500">SSH-Accepting</td><td>{{.SSHAccepting}}</td></tr>
-            <tr><td style="font-weight:500">Enrollment Tokens</td><td>{{.TotalTokens}}</td></tr>
-            <tr><td style="font-weight:500">Audit Log Entries</td><td>{{.AuditCount}}</td></tr>
+            <tr><td class="info-label">Server URL</td><td class="info-value">{{.ServerURL}}</td></tr>
+            <tr><td class="info-label">Total Devices</td><td>{{.TotalDevices}}</td></tr>
+            <tr><td class="info-label">Active Devices</td><td>{{.ActiveDevices}}</td></tr>
+            <tr><td class="info-label">SSH-Accepting</td><td>{{.SSHAccepting}}</td></tr>
+            <tr><td class="info-label">Enrollment Tokens</td><td>{{.TotalTokens}}</td></tr>
+            <tr><td class="info-label">Audit Log Entries</td><td>{{.AuditCount}}</td></tr>
         </tbody>
     </table>
+    </div>
 </div>
 
 <div class="card">
-    <h2>Quick Reference</h2>
-    <p style="color:var(--text-muted);margin-bottom:0.75rem">Common CLI commands:</p>
+    <div class="card-header">
+        <h2 class="card-title">Quick Reference</h2>
+    </div>
+    <p class="text-muted">Common CLI commands:</p>
     <div class="keys-output">keyforge serve --port 9315 --data ./keyforge-data
 keyforge enroll --name "device" --token TOKEN --server {{.ServerURL}}
 keyforge keys --install --server {{.ServerURL}}

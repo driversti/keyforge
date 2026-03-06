@@ -6,21 +6,25 @@
 </div>
 
 <div class="card">
-    <h2>Enroll "{{.Token.DeviceName}}"</h2>
+    <div class="card-header">
+        <h2 class="card-title">Enroll "{{.Token.DeviceName}}"</h2>
+    </div>
     <p>Run this command on the device to enroll it:</p>
 
     <div class="token-reveal">
         <code id="enroll-cmd">{{.CurlCmd}}</code>
-        <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('enroll-cmd').textContent)">Copy</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('enroll-cmd').textContent)">Copy</button>
     </div>
 
-    <table class="detail-table" style="margin-top: 1.5rem;">
-        <tr><td><strong>Device name</strong></td><td>{{.Token.DeviceName}}</td></tr>
-        <tr><td><strong>Accepts SSH</strong></td><td>{{if .Token.AcceptSSH}}Yes{{else}}No{{end}}</td></tr>
+    <div class="table-wrapper">
+    <table class="detail-table" style="margin-top: var(--space-6);">
+        <tr><td class="info-label">Device name</td><td>{{.Token.DeviceName}}</td></tr>
+        <tr><td class="info-label">Accepts SSH</td><td>{{if .Token.AcceptSSH}}Yes{{else}}No{{end}}</td></tr>
         {{if .Token.SyncInterval}}
-        <tr><td><strong>Sync interval</strong></td><td>{{.Token.SyncInterval}}</td></tr>
+        <tr><td class="info-label">Sync interval</td><td>{{.Token.SyncInterval}}</td></tr>
         {{end}}
-        <tr><td><strong>Expires</strong></td><td>{{formatDate .Token.ExpiresAt}}</td></tr>
+        <tr><td class="info-label">Expires</td><td>{{formatDate .Token.ExpiresAt}}</td></tr>
     </table>
+    </div>
 </div>
 {{end}}

@@ -6,7 +6,7 @@
 </div>
 
 {{if .Flash}}
-<div class="flash">{{.Flash}}</div>
+<div class="flash flash-success">{{.Flash}}</div>
 {{end}}
 
 {{if .CreatedEnrollCmd}}
@@ -30,21 +30,23 @@
 {{end}}
 
 <div class="card">
-    <h2>Quick Enroll</h2>
+    <div class="card-header">
+        <h2 class="card-title">Quick Enroll</h2>
+    </div>
     <p>Generate a one-liner to enroll a device. Just copy and paste on the target machine.</p>
     <form method="POST" action="/tokens/quick-enroll" class="inline-form">
         <div class="form-group">
-            <label for="qe_name">Device Name *</label>
-            <input type="text" id="qe_name" name="device_name" placeholder="e.g. rpi4" required>
+            <label for="qe_name" class="form-label">Device Name *</label>
+            <input type="text" id="qe_name" name="device_name" class="form-input" placeholder="e.g. rpi4" required>
         </div>
         <div class="form-group">
-            <label for="qe_accept_ssh">
+            <label for="qe_accept_ssh" class="form-label">
                 <input type="checkbox" id="qe_accept_ssh" name="accept_ssh" value="true"> Accepts SSH
             </label>
         </div>
         <div class="form-group">
-            <label for="qe_sync">Sync Interval</label>
-            <select id="qe_sync" name="sync_interval" class="filter-select">
+            <label for="qe_sync" class="form-label">Sync Interval</label>
+            <select id="qe_sync" name="sync_interval" class="form-select">
                 <option value="">None</option>
                 <option value="5m">5 minutes</option>
                 <option value="15m" selected>15 minutes</option>
@@ -52,8 +54,8 @@
             </select>
         </div>
         <div class="form-group">
-            <label for="qe_expires">Expires In</label>
-            <select id="qe_expires" name="expires_in" class="filter-select">
+            <label for="qe_expires" class="form-label">Expires In</label>
+            <select id="qe_expires" name="expires_in" class="form-select">
                 <option value="1h">1 hour</option>
                 <option value="6h">6 hours</option>
                 <option value="24h" selected>24 hours</option>
@@ -65,15 +67,17 @@
 </div>
 
 <div class="card">
-    <h2>Create Token</h2>
+    <div class="card-header">
+        <h2 class="card-title">Create Token</h2>
+    </div>
     <form method="POST" action="/tokens" class="inline-form">
         <div class="form-group">
-            <label for="label">Label</label>
-            <input type="text" id="label" name="label" placeholder="e.g. laptop-enrollment">
+            <label for="label" class="form-label">Label</label>
+            <input type="text" id="label" name="label" class="form-input" placeholder="e.g. laptop-enrollment">
         </div>
         <div class="form-group">
-            <label for="expires_in">Expires In</label>
-            <select id="expires_in" name="expires_in" class="filter-select">
+            <label for="expires_in" class="form-label">Expires In</label>
+            <select id="expires_in" name="expires_in" class="form-select">
                 <option value="1h">1 hour</option>
                 <option value="6h">6 hours</option>
                 <option value="24h" selected>24 hours</option>
@@ -84,6 +88,7 @@
     </form>
 </div>
 
+<div class="table-wrapper">
 <table>
     <thead>
         <tr>
@@ -103,17 +108,17 @@
             <td>
                 <div class="actions">
                     <code class="fingerprint">{{truncate .Token 20}}</code>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('{{.Token}}')">Copy</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('{{.Token}}')">Copy</button>
                 </div>
             </td>
             <td>{{formatDate .ExpiresAt}}</td>
             <td>
                 {{if .Used}}
-                    <span class="badge revoked">Used</span>
+                    <span class="badge badge-revoked">Used</span>
                 {{else if $.Now.After .ExpiresAt}}
-                    <span class="badge revoked">Expired</span>
+                    <span class="badge badge-revoked">Expired</span>
                 {{else}}
-                    <span class="badge active">Active</span>
+                    <span class="badge badge-active">Active</span>
                 {{end}}
             </td>
             <td>{{formatDate .CreatedAt}}</td>
@@ -131,4 +136,5 @@
         {{end}}
     </tbody>
 </table>
+</div>
 {{end}}

@@ -5,19 +5,19 @@
 </div>
 
 {{if .Error}}
-<div class="flash error">{{.Error}}</div>
+<div class="flash flash-error">{{.Error}}</div>
 {{end}}
 
 <div class="card">
     <form method="POST" action="/devices/{{.Device.ID}}/edit">
         <div class="form-group">
-            <label>Name</label>
-            <input type="text" name="name" value="{{.Device.Name}}" required>
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-input" value="{{.Device.Name}}" required>
         </div>
 
         <div class="form-group">
-            <label>Tags (comma-separated)</label>
-            <input type="text" name="tags" value="{{.TagsString}}">
+            <label class="form-label">Tags (comma-separated)</label>
+            <input type="text" name="tags" class="form-input" value="{{.TagsString}}">
         </div>
 
         <div class="form-group">
@@ -28,18 +28,18 @@
         </div>
 
         <div class="form-group">
-            <label>Public Key</label>
+            <label class="form-label">Public Key</label>
             <div class="keys-output" style="max-height:80px">{{.Device.PublicKey}}</div>
         </div>
 
         <div class="form-group">
-            <label>Fingerprint</label>
-            <div style="font-family:monospace;font-size:0.85rem;color:var(--text-muted)">{{.Device.Fingerprint}}</div>
+            <label class="form-label">Fingerprint</label>
+            <div class="fingerprint">{{.Device.Fingerprint}}</div>
         </div>
 
-        <div style="display:flex;gap:0.5rem">
+        <div style="display:flex;gap:var(--space-2)">
             <button type="submit" class="btn btn-primary">Save Changes</button>
-            <a href="/devices" class="btn btn-outline">Cancel</a>
+            <a href="/devices" class="btn btn-ghost">Cancel</a>
         </div>
     </form>
 </div>
