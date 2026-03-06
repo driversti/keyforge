@@ -13,13 +13,13 @@
         </div>
 
         {{if .Error}}
-        <div class="flash error">{{.Error}}</div>
+        <div class="flash flash-error">{{.Error}}</div>
         {{end}}
 
         <form method="POST" action="/login">
             <div class="form-group">
-                <label for="api_key">Password or API Key</label>
-                <input type="password" id="api_key" name="api_key" placeholder="Enter password or API key" required autofocus>
+                <label class="form-label" for="api_key">Password or API Key</label>
+                <input type="password" id="api_key" name="api_key" class="form-input" placeholder="Enter password or API key" required autofocus>
             </div>
             <button type="submit" class="btn btn-primary login-btn">Login</button>
         </form>
