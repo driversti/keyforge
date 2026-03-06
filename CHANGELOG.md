@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.3.0] - 2026-03-06
 
 ### Changed
 - Complete UI redesign with modern, clean aesthetic (Linear/Apple inspired)
