@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Complete UI redesign with modern, clean aesthetic (Linear/Apple inspired)
+- Added light/dark theme support with system preference detection
+- New color scheme with emerald accent color
+- Inter font for improved typography
+- Improved responsive design for mobile devices
+- Theme toggle button in navigation bar
+
 ## [v0.2.6] - 2026-03-05
 
 ### Fixed
