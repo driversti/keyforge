@@ -7,7 +7,7 @@
 </div>
 
 {{if .Flash}}
-<div class="flash">{{.Flash}}</div>
+<div class="flash flash-success">{{.Flash}}</div>
 {{end}}
 
 <form method="GET" action="/devices" class="filter-bar">
@@ -17,62 +17,64 @@
         <option value="active" {{if eq .StatusFilter "active"}}selected{{end}}>Active</option>
         <option value="revoked" {{if eq .StatusFilter "revoked"}}selected{{end}}>Revoked</option>
     </select>
-    <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
     {{if or .Query .StatusFilter}}
-    <a href="/devices" class="btn btn-sm" style="color:var(--text-muted)">Clear</a>
+    <a href="/devices" class="btn btn-ghost btn-sm">Clear</a>
     {{end}}
 </form>
 
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>SSH</th>
-            <th>Fingerprint</th>
-            <th>Tags</th>
-            <th>Registered</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{if .Devices}}
-        {{range .Devices}}
-        <tr>
-            <td>{{.Name}}</td>
-            <td><span class="badge {{if eq (print .Status) "active"}}active{{else}}revoked{{end}}">{{.Status}}</span></td>
-            <td>{{if .AcceptsSSH}}yes{{else}}no{{end}}</td>
-            <td><span class="fingerprint" title="{{.Fingerprint}}">{{truncate .Fingerprint 24}}</span></td>
-            <td>
-                <div class="tags">
-                    {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
-                </div>
-            </td>
-            <td>{{formatDate .RegisteredAt}}</td>
-            <td>
-                <div class="actions">
-                    <a href="/devices/{{.ID}}/edit" class="btn btn-outline btn-sm">Edit</a>
-                    {{if eq (print .Status) "active"}}
-                    <form method="POST" action="/devices/{{.ID}}/revoke">
-                        <button type="submit" class="btn btn-outline btn-sm">Revoke</button>
-                    </form>
-                    {{else}}
-                    <form method="POST" action="/devices/{{.ID}}/reactivate">
-                        <button type="submit" class="btn btn-outline btn-sm">Reactivate</button>
-                    </form>
-                    {{end}}
-                    <form method="POST" action="/devices/{{.ID}}/delete" onsubmit="return confirm('Delete this device?')">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
-                </div>
-            </td>
-        </tr>
-        {{end}}
-        {{else}}
-        <tr>
-            <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 2rem;">No devices registered yet.</td>
-        </tr>
-        {{end}}
-    </tbody>
-</table>
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>SSH</th>
+                <th>Fingerprint</th>
+                <th>Tags</th>
+                <th>Registered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Devices}}
+            {{range .Devices}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td><span class="badge {{if eq (print .Status) "active"}}badge-active{{else}}badge-revoked{{end}}">{{.Status}}</span></td>
+                <td>{{if .AcceptsSSH}}<span style="color:var(--success)">Yes</span>{{else}}<span style="color:var(--text-muted)">No</span>{{end}}</td>
+                <td><span class="fingerprint" title="{{.Fingerprint}}">{{truncate .Fingerprint 24}}</span></td>
+                <td>
+                    <div class="tags">
+                        {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+                    </div>
+                </td>
+                <td>{{formatDate .RegisteredAt}}</td>
+                <td>
+                    <div class="actions">
+                        <a href="/devices/{{.ID}}/edit" class="btn btn-ghost btn-sm">Edit</a>
+                        {{if eq (print .Status) "active"}}
+                        <form method="POST" action="/devices/{{.ID}}/revoke">
+                            <button type="submit" class="btn btn-ghost btn-sm">Revoke</button>
+                        </form>
+                        {{else}}
+                        <form method="POST" action="/devices/{{.ID}}/reactivate">
+                            <button type="submit" class="btn btn-ghost btn-sm">Reactivate</button>
+                        </form>
+                        {{end}}
+                        <form method="POST" action="/devices/{{.ID}}/delete" onsubmit="return confirm('Delete this device?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {{end}}
+            {{else}}
+            <tr>
+                <td colspan="7" class="empty-state">No devices registered yet.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
 {{end}}
