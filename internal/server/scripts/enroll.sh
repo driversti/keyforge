@@ -85,7 +85,7 @@ if [ "$ACCEPT_SSH" = "true" ]; then
     fi
 
     # Append managed section
-    printf "\n%s\n%s\n%s\n" "$HEADER" "$KEYS" "$FOOTER" >> "$AUTH_FILE"
+    printf "%s\n%s\n%s\n" "$HEADER" "$KEYS" "$FOOTER" >> "$AUTH_FILE"
     chmod 600 "$AUTH_FILE"
     echo "Authorized keys installed to $AUTH_FILE"
 
@@ -125,7 +125,7 @@ if [ "$ACCEPT_SSH" = "true" ]; then
                 CACHE_FILE="\$CACHE_DIR/authorized_keys.cache"
                 # curl --fail: treat HTTP errors as failures (don't overwrite keys with error pages)
                 # On success: update cache + authorized_keys. On failure: use cached keys if available.
-                CRON_LINE="$CRON_SCHEDULE mkdir -p $CACHE_DIR && { curl -sSf $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys 2>/dev/null && cp /tmp/kf_keys $CACHE_FILE || cp $CACHE_FILE /tmp/kf_keys 2>/dev/null; } && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f $AUTH_FILE.bak; printf '\\n$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm -f /tmp/kf_keys)"
+                CRON_LINE="$CRON_SCHEDULE mkdir -p $CACHE_DIR && { curl -sSf $SERVER_URL/api/v1/authorized_keys > /tmp/kf_keys 2>/dev/null && cp /tmp/kf_keys $CACHE_FILE || cp $CACHE_FILE /tmp/kf_keys 2>/dev/null; } && (sed -i.bak '/$HEADER/,/$FOOTER/d' $AUTH_FILE 2>/dev/null; rm -f $AUTH_FILE.bak; printf '$HEADER\\n' >> $AUTH_FILE; cat /tmp/kf_keys >> $AUTH_FILE; printf '$FOOTER\\n' >> $AUTH_FILE; rm -f /tmp/kf_keys)"
             fi
 
             (crontab -l 2>/dev/null | grep -v "KeyForge"; printf '%s\n' "$CRON_LINE") | crontab -
